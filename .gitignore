@@ -1,0 +1,7 @@
+.deps/
+.deps2/
+.deps3/
+.pytest_cache/
+__pycache__/
+*.pyc
+nul
