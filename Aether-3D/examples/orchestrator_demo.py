@@ -22,6 +22,9 @@ and calls step per millisecond, merging the returned fragments.
   with_traffic, with_haps, with_base_stations, with_uav.
 * **Layers** — GeometryLayer, FadingLayer, ShadowingLayer, TrafficLayer,
   HAPSLayer, BaseStationLayer, InterferenceLayer (all pre-registered).
+  Optional extension layers: GEOLayer, AirObjectsLayer,
+  FrequencySelectiveLayer, PPPInterferenceLayer, GaussianFieldLayer,
+  AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer.
 * **ShadowingFading** — selected/configured through the built-in
   ShadowingLayer which is part of the default layer order.  Users
   never instantiate it directly; they configure shadowing via
@@ -375,6 +378,35 @@ def demonstrate_custom_layer() -> None:
         print(f"  range: {min(elevations):.1f} - {max(elevations):.1f} deg")
 
 
+def demonstrate_new_layers() -> None:
+    """Demonstrate the orchestrator extension layers.
+
+    Shows how the new SimLayer subclasses—AtmosphericLossLayer and
+    SatelliteCellGeomLayer—can be plugged into the orchestrator via the
+    fluent API without modifying the core simulation loop.
+    """
+    print_section("New layers: atmospheric loss + satellite cell geometry")
+
+    sim = (NetworkSimulation(SimulationConfig(
+        num_sat=48, num_planes=4, f=2.0e9, steps=2,
+        max_ms=200,
+        time_start=(2022, 9, 22, 0, 0, 0),
+        time_end=(2022, 9, 22, 2, 0, 0),
+    ))
+     .with_constellation(num_sat=48, num_planes=4)
+     .with_ground_station(lat=53.110987, lon=8.851239)
+     .with_fading(mode="full")
+     .with_atmospheric_loss(detailed=True)
+     .with_satellite_cell_geom(radius_km=25.0))
+    sim.run()
+
+    print(f"  Registered layers: {[l.name for l in sim.layers]}")
+    print(f"  cell_radius_km: {sim.cfg.cell_radius_km}")
+    print(f"  detailed_atmospheric_loss: {sim.cfg.detailed_atmospheric_loss}")
+    if sim.results is not None and len(sim.results.p_rx) > 0:
+        print(f"  p_rx rows: {len(sim.results.p_rx)}")
+
+
 def main():
     """Run the orchestrator demo end-to-end."""
     print_section("3DANTS Orchestrator Demo")
@@ -404,6 +436,9 @@ def main():
 
     # Demonstrate reconfiguration (different fading / frequency).
     demonstrate_reconfiguration()
+
+    # Demonstrate new extension layers.
+    demonstrate_new_layers()
 
     # Demonstrate extensibility (custom layer).
     demonstrate_custom_layer()

@@ -51,6 +51,11 @@ Satellite_Fading_channel = _cls("3DANTS.communication_channel.satellite_fading_c
 Air_Fading_channel = _cls("3DANTS.communication_channel.air_2_ground_fading.Air_Fading_channel")
 ShadowingFading = _cls("3DANTS.communication_channel.shadowing_temporally_correlated_AR.ShadowingFading")
 Uav_trajectory = _cls("3DANTS.position_and_mobility.uav.Uav_trajectory")
+Atmospheric_loss = _cls("3DANTS.communication_channel.atmospheric_loss.Atmospheric_loss")
+Air = _cls("3DANTS.communication_channel.air_objects_class.Air")
+FrequencySelectiveFadingSimulation = _cls("3DANTS.communication_channel.frequency_selective.FrequencySelectiveFadingSimulation")
+FadingSimulation_Non_terrestrial = _cls("3DANTS.communication_channel.ntn_fading_channel_sim.FadingSimulation_Non_terrestrial")
+Guassian_Random_filed_generator = _cls("3DANTS.communication_channel.gaussian_field.Guassian_Random_filed_generator")
 
 _analysis = importlib.import_module("3DANTS.analysis")
 compute_simultaneous_visibility = _analysis.compute_simultaneous_visibility
@@ -139,6 +144,34 @@ class SimulationConfig:
     max_ms: Optional[int] = None
     plot: bool = False
     verbose: bool = False
+
+    # GEO satellite support
+    geo_enabled: bool = False
+    geo_inclination: int = 0
+    geo_count: int = 3
+
+    # Air-to-ground pathloss for UAVs
+    air_environment: str = "Suburban"
+    air_altitude: float = 10.0
+
+    # Frequency-selective fading
+    fs_num_subcarriers: int = 64
+    fs_delay_spread: float = 1e-6
+    fs_num_taps: int = 8
+
+    # PPP interference
+    ppp_lambda: int = 10
+    ppp_radius: float = 10.0
+
+    # Gaussian random field
+    gf_variance: float = 8.0
+    gf_len_scale: float = 0.01
+
+    # Detailed atmospheric loss
+    detailed_atmospheric_loss: bool = False
+
+    # Satellite cell geometry
+    cell_radius_km: float = 25.0
 
 
 @dataclass
@@ -733,6 +766,15 @@ class NetworkSimulation:
         self.registry.register("haps", HAPSLayer)
         self.registry.register("base_station", BaseStationLayer)
         self.registry.register("interference", InterferenceLayer)
+        # Optional extension layers
+        self.registry.register("geo", GEOLayer)
+        self.registry.register("air_objects", AirObjectsLayer)
+        self.registry.register("freq_selective", FrequencySelectiveLayer)
+        self.registry.register("ppp", PPPInterferenceLayer)
+        self.registry.register("gaussian_field", GaussianFieldLayer)
+        self.registry.register("atmospheric_loss", AtmosphericLossLayer)
+        self.registry.register("satellite_cell_geom", SatelliteCellGeomLayer)
+        self.registry.register("ntn_fading", NTNFadingLayer)
         self.layers: List[SimLayer] = [
             self.registry.get(name)() for name in self.DEFAULT_LAYER_ORDER
         ]
@@ -815,6 +857,71 @@ class NetworkSimulation:
             self.cfg.uav_height = height
         if velocity is not None:
             self.cfg.uav_velocity = velocity
+        return self
+
+    def with_geo(self, count=None, inclination=None) -> "NetworkSimulation":
+        """Enable GEO satellite support layer."""
+        self.cfg.geo_enabled = True
+        if count is not None:
+            self.cfg.geo_count = count
+        if inclination is not None:
+            self.cfg.geo_inclination = inclination
+        self.add_layer(GEOLayer())
+        return self
+
+    def with_air_objects(self, environment=None) -> "NetworkSimulation":
+        """Enable air-to-ground LoS/pathloss layer."""
+        if environment is not None:
+            self.cfg.air_environment = environment
+        self.add_layer(AirObjectsLayer())
+        return self
+
+    def with_freq_selective(self, num_subcarriers=None, delay_spread=None,
+                            num_taps=None) -> "NetworkSimulation":
+        """Enable frequency-selective fading layer."""
+        if num_subcarriers is not None:
+            self.cfg.fs_num_subcarriers = num_subcarriers
+        if delay_spread is not None:
+            self.cfg.fs_delay_spread = delay_spread
+        if num_taps is not None:
+            self.cfg.fs_num_taps = num_taps
+        self.add_layer(FrequencySelectiveLayer())
+        return self
+
+    def with_ppp(self, lam=None, radius=None) -> "NetworkSimulation":
+        """Enable PPP interference layer from HAPS ground terminals."""
+        if lam is not None:
+            self.cfg.ppp_lambda = lam
+        if radius is not None:
+            self.cfg.ppp_radius = radius
+        self.add_layer(PPPInterferenceLayer())
+        return self
+
+    def with_gaussian_field(self, variance=None, len_scale=None) -> "NetworkSimulation":
+        """Enable Gaussian random field spatial correlation layer."""
+        if variance is not None:
+            self.cfg.gf_variance = variance
+        if len_scale is not None:
+            self.cfg.gf_len_scale = len_scale
+        self.add_layer(GaussianFieldLayer())
+        return self
+
+    def with_atmospheric_loss(self, detailed=False) -> "NetworkSimulation":
+        """Enable atmospheric attenuation layer (ITU-R models)."""
+        self.cfg.detailed_atmospheric_loss = detailed
+        self.add_layer(AtmosphericLossLayer())
+        return self
+
+    def with_satellite_cell_geom(self, radius_km=None) -> "NetworkSimulation":
+        """Enable satellite cell geometry layer (hexagonal footprints)."""
+        if radius_km is not None:
+            self.cfg.cell_radius_km = radius_km
+        self.add_layer(SatelliteCellGeomLayer())
+        return self
+
+    def with_ntn_fading(self) -> "NetworkSimulation":
+        """Enable NTN-specific small-scale fading layer."""
+        self.add_layer(NTNFadingLayer())
         return self
 
     def _resolve_layer(self, name: str) -> SimLayer:
@@ -980,6 +1087,256 @@ class UAVLayer(SimLayer):
             "uav_rx_power": 0,
         }
 
+
+
+
+class GEOLayer(SimLayer):
+    """GEO satellite support layer.
+
+    Extends the geometry layer with GEO satellites using
+    LEO_GEO.GEO() when geo_enabled is True.
+    """
+    name = "geo"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        if not cfg.geo_enabled:
+            return
+        self._geo_sats = []
+        for i in range(cfg.geo_count):
+            sat = sim._lg.GEO(cfg.geo_inclination)
+            self._geo_sats.append(sat)
+            sim._df2 = pd.concat([sim._df2, pd.DataFrame([{
+                'Satellite': [f'GEO{i+1}'],
+                'Rise': [sim._time1], 'Set': [sim._time2],
+            }]).T], ignore_index=True)
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        return {"geo_satellites": len(self._geo_sats)}
+
+
+class AirObjectsLayer(SimLayer):
+    """Air-to-ground pathloss and LoS for UAV/UE links.
+
+    Uses the Air class from air_objects_class.py for LoS probability
+    and pathloss calculations for air-to-ground links.
+    """
+    name = "air_objects"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        self._air = Air(cfg.air_environment, cfg.f)
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        cfg = self.sim.cfg
+        elevation = ctx.elevation_angle
+        air_los_prob = self._air.LoS_calculator(elevation)
+        return {
+            "air_los_prob": air_los_prob,
+        }
+
+
+class FrequencySelectiveLayer(SimLayer):
+    """Frequency-selective fading layer.
+
+    Uses FrequencySelectiveFadingSimulation from frequency_selective.py
+    as an alternative to the standard Satellite_Fading_channel.
+    """
+    name = "freq_selective"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        self._fs_channel = FrequencySelectiveFadingSimulation(
+            num_samples=cfg.fading_batch_size,
+            fs=cfg.fading_fs_initial,
+            N=cfg.fading_N,
+            h=cfg.h_leo,
+            num_subcarriers=cfg.fs_num_subcarriers,
+            delay_spread=cfg.fs_delay_spread,
+            num_taps=cfg.fs_num_taps,
+        )
+        sim._freq_selective_channel = self._fs_channel
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        if not hasattr(self, '_batch') or self._batch is None:
+            self._batch = self._fs_channel.run_frequency_selective_simulation(
+                ctx.elevation_angle, self.sim.cfg.f, ctx.distance_GS_sat, 15e3)
+            self._idx = 0
+        sample = self._batch[self._idx] if self._idx < len(self._batch) else 0
+        self._idx += 1
+        return {"fs_fading_sample": sample}
+
+
+class PPPInterferenceLayer(SimLayer):
+    """PPP interference layer from HAPS ground terminals.
+
+    Uses functions from ppp_scenario.py for PPP-based interference
+    modeling.
+    """
+    name = "ppp"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        cfg = self.sim.cfg
+        # PPP: number of interferers in circular region ~ Poisson(lambda * area)
+        area = np.pi * cfg.ppp_radius ** 2
+        num_interferers = int(np.random.poisson(cfg.ppp_lambda * area))
+        if num_interferers > 0:
+            distances = np.random.uniform(0.1, cfg.ppp_radius, num_interferers)
+            fspl = Rx_power().FSPl_only(cfg.f, distances)
+            ppp_interference = float(np.sum(10 ** (-fspl / 10)))
+        else:
+            ppp_interference = 0.0
+        return {"ppp_interference": ppp_interference,
+                "ppp_num_interferers": num_interferers}
+
+
+class GaussianFieldLayer(SimLayer):
+    """Spatial channel correlation via Gaussian random fields.
+
+    Uses Guassian_Random_filed_generator from gaussian_field.py
+    to generate spatially correlated shadowing.
+    """
+    name = "gaussian_field"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        self._generator = Guassian_Random_filed_generator()
+        self._field = None
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        if self._field is None:
+            cfg = self.sim.cfg
+            center = sim._groundstation.at(ctx.time_now).position.km
+            field, srf = self._generator.field_generator_2D(
+                cfg.gf_variance, cfg.gf_len_scale, 10,
+                center[0], center[1], cfg.satellite_beam_diameter)
+            self._field = field
+            self._srf = srf
+        return {"gf_field_value": float(np.mean(self._field))}
+
+
+class AtmosphericLossLayer(SimLayer):
+    """Atmospheric attenuation layer using ITU-R models.
+
+    Wraps Atmospheric_loss from atmospheric_loss.py to compute cloud,
+    rain, gas, and scintillation attenuation per simulation step.
+    """
+    name = "atmospheric_loss"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        self._f_c_ghz = cfg.f / 1e9
+        self._detailed = cfg.detailed_atmospheric_loss
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        elevation = ctx.elevation_angle
+        atm = Atmospheric_loss(f_c=self._f_c_ghz, elevation_angle=elevation)
+        if self._detailed:
+            results = atm.get_detailed_results()
+            return {"atmospheric_loss_db": results["total_attenuation_dB"],
+                    "atmospheric_loss_detailed": results}
+        return {"atmospheric_loss_db": atm.calculate_total_attenuation()}
+
+
+class SatelliteCellGeomLayer(SimLayer):
+    """Satellite cell geometry layer (hexagonal footprints).
+
+    Wraps satellite_cell_geom.py functions to compute hexagonal cell
+    vertices and BS-satellite overlap regions.  The satellite_cell_geom
+    module is imported lazily because it pulls in heavy dependencies
+    (skyfield, sgp4, matplotlib) that are not needed unless this layer
+    is active.
+    """
+    name = "satellite_cell_geom"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        _scg = importlib.import_module("3DANTS.position_and_mobility.satellite_cell_geom")
+        self._hexagon_vertices = _scg.hexagon_vertices
+        self._compute_new_hexagon_center = _scg.compute_new_hexagon_center
+        self._overlapping_rhombus = _scg.overlapping_rhombus
+        self._north_edge = _scg.north_edge
+        self._calculate_midpoint = _scg.calculate_midpoint
+        self._radius_km = cfg.cell_radius_km
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        cfg = self.sim.cfg
+        vertices = self._hexagon_vertices(cfg.gs_lat, cfg.gs_lon, self._radius_km)
+        return {"cell_vertices": vertices,
+                "cell_center": (cfg.gs_lat, cfg.gs_lon)}
+
+
+class NTNFadingLayer(SimLayer):
+    """NTN-specific small-scale fading layer.
+
+    Wraps FadingSimulation_Non_terrestrial from ntn_fading_channel_sim.py
+    as an alternative to the standard Satellite_Fading_channel used by
+    FadingLayer.
+    """
+    name = "ntn_fading"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        self._ntn_channel = FadingSimulation_Non_terrestrial(
+            num_samples=cfg.fading_batch_size,
+            fs=cfg.fading_fs_initial,
+            N=cfg.fading_N,
+            h=cfg.h_leo,
+        )
+        sim._ntn_channel = self._ntn_channel
+        sim._ntn_fading_batch = None
+        sim._ntn_fading_idx = 0
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        cfg = sim.cfg
+        if hasattr(sim, "_elev0") and hasattr(sim, "_distance_GS_sat"):
+            sim._ntn_fading_batch = self._ntn_channel.run_simulation(
+                sim._elev0, cfg.f, sim._distance_GS_sat)
+            sim._ntn_fading_idx = 0
+        else:
+            sim._ntn_fading_batch = None
+            sim._ntn_fading_idx = 0
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        sim = self.sim
+        batch = sim._ntn_fading_batch
+        if batch is None:
+            return {"ntn_fading_sample": 0}
+        idx = sim._ntn_fading_idx
+        sample = float(batch[idx]) if idx < len(batch) else 0.0
+        sim._ntn_fading_idx = idx + 1
+        return {"ntn_fading_sample": sample}
 
 
 def _parse_args(argv=None):

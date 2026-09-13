@@ -36,6 +36,14 @@ SimulationConfig = _sim.SimulationConfig
 SimLayer = _sim.SimLayer
 UAVLayer = _sim.UAVLayer
 ComponentRegistry = _sim.ComponentRegistry
+GEOLayer = _sim.GEOLayer
+AirObjectsLayer = _sim.AirObjectsLayer
+FrequencySelectiveLayer = _sim.FrequencySelectiveLayer
+PPPInterferenceLayer = _sim.PPPInterferenceLayer
+GaussianFieldLayer = _sim.GaussianFieldLayer
+AtmosphericLossLayer = _sim.AtmosphericLossLayer
+SatelliteCellGeomLayer = _sim.SatelliteCellGeomLayer
+NTNFadingLayer = _sim.NTNFadingLayer
 
 
 class TestSimulationConfig(unittest.TestCase):
@@ -198,6 +206,147 @@ class TestSimLayerHooks(unittest.TestCase):
         self.assertEqual(layer.pass_count, 1)
         layer.configure(sim)
         self.assertEqual(layer.pass_count, 2)
+
+
+
+class TestNewConfigFields(unittest.TestCase):
+    def test_cell_radius_km_default(self):
+        cfg = SimulationConfig()
+        self.assertEqual(cfg.cell_radius_km, 25.0)
+
+    def test_geo_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertFalse(cfg.geo_enabled)
+        self.assertEqual(cfg.geo_inclination, 0)
+        self.assertEqual(cfg.geo_count, 3)
+
+    def test_air_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertEqual(cfg.air_environment, "Suburban")
+        self.assertEqual(cfg.air_altitude, 10.0)
+
+    def test_fs_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertEqual(cfg.fs_num_subcarriers, 64)
+        self.assertEqual(cfg.fs_delay_spread, 1e-6)
+        self.assertEqual(cfg.fs_num_taps, 8)
+
+    def test_ppp_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertEqual(cfg.ppp_lambda, 10)
+        self.assertEqual(cfg.ppp_radius, 10.0)
+
+    def test_gf_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertEqual(cfg.gf_variance, 8.0)
+        self.assertEqual(cfg.gf_len_scale, 0.01)
+
+    def test_atmospheric_config_defaults(self):
+        cfg = SimulationConfig()
+        self.assertFalse(cfg.detailed_atmospheric_loss)
+
+
+class TestNewLayersRegistration(unittest.TestCase):
+    def test_new_layers_registered(self):
+        sim = NetworkSimulation()
+        names = sim.registry.names()
+        for name in ["geo", "air_objects", "freq_selective", "ppp",
+                     "gaussian_field", "atmospheric_loss",
+                     "satellite_cell_geom", "ntn_fading"]:
+            self.assertIn(name, names, f"{name} not registered")
+
+    def test_layer_names(self):
+        self.assertEqual(GEOLayer.name, "geo")
+        self.assertEqual(AirObjectsLayer.name, "air_objects")
+        self.assertEqual(FrequencySelectiveLayer.name, "freq_selective")
+        self.assertEqual(PPPInterferenceLayer.name, "ppp")
+        self.assertEqual(GaussianFieldLayer.name, "gaussian_field")
+        self.assertEqual(AtmosphericLossLayer.name, "atmospheric_loss")
+        self.assertEqual(SatelliteCellGeomLayer.name, "satellite_cell_geom")
+        self.assertEqual(NTNFadingLayer.name, "ntn_fading")
+
+
+class TestNewFluentMethods(unittest.TestCase):
+    def test_with_geo(self):
+        sim = NetworkSimulation()
+        sim.with_geo(count=5, inclination=70)
+        self.assertTrue(sim.cfg.geo_enabled)
+        self.assertEqual(sim.cfg.geo_count, 5)
+        self.assertEqual(sim.cfg.geo_inclination, 70)
+        self.assertIn("geo", sim.registry.names())
+        self.assertEqual(len(sim.layers), 8)
+
+    def test_with_air_objects(self):
+        sim = NetworkSimulation()
+        sim.with_air_objects(environment="Urban")
+        self.assertEqual(sim.cfg.air_environment, "Urban")
+        self.assertIn("air_objects", sim.registry.names())
+        self.assertEqual(len(sim.layers), 8)
+
+    def test_with_freq_selective(self):
+        sim = NetworkSimulation()
+        sim.with_freq_selective(num_subcarriers=128, delay_spread=2e-6, num_taps=16)
+        self.assertEqual(sim.cfg.fs_num_subcarriers, 128)
+        self.assertEqual(sim.cfg.fs_delay_spread, 2e-6)
+        self.assertEqual(sim.cfg.fs_num_taps, 16)
+        self.assertIn("freq_selective", sim.registry.names())
+
+    def test_with_ppp(self):
+        sim = NetworkSimulation()
+        sim.with_ppp(lam=20, radius=15.0)
+        self.assertEqual(sim.cfg.ppp_lambda, 20)
+        self.assertEqual(sim.cfg.ppp_radius, 15.0)
+        self.assertIn("ppp", sim.registry.names())
+
+    def test_with_gaussian_field(self):
+        sim = NetworkSimulation()
+        sim.with_gaussian_field(variance=10.0, len_scale=0.02)
+        self.assertEqual(sim.cfg.gf_variance, 10.0)
+        self.assertEqual(sim.cfg.gf_len_scale, 0.02)
+        self.assertIn("gaussian_field", sim.registry.names())
+
+    def test_with_atmospheric_loss(self):
+        sim = NetworkSimulation()
+        sim.with_atmospheric_loss(detailed=True)
+        self.assertTrue(sim.cfg.detailed_atmospheric_loss)
+        self.assertIn("atmospheric_loss", sim.registry.names())
+
+    def test_with_satellite_cell_geom(self):
+        sim = NetworkSimulation()
+        sim.with_satellite_cell_geom(radius_km=50.0)
+        self.assertEqual(sim.cfg.cell_radius_km, 50.0)
+        self.assertIn("satellite_cell_geom", sim.registry.names())
+
+    def test_with_ntn_fading(self):
+        sim = NetworkSimulation()
+        sim.with_ntn_fading()
+        self.assertIn("ntn_fading", sim.registry.names())
+        self.assertEqual(len(sim.layers), 8)
+
+    def test_fluent_returns_self_for_new_methods(self):
+        sim = NetworkSimulation()
+        for result in [
+            sim.with_geo(),
+            sim.with_atmospheric_loss(),
+            sim.with_satellite_cell_geom(),
+        ]:
+            self.assertIs(result, sim)
+
+
+class TestLayerHooks(unittest.TestCase):
+    def test_new_layers_are_simlayer_subclasses(self):
+        for cls in [GEOLayer, AirObjectsLayer, FrequencySelectiveLayer,
+                    PPPInterferenceLayer, GaussianFieldLayer,
+                    AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer]:
+            self.assertTrue(issubclass(cls, SimLayer))
+
+    def test_new_layer_configure_sets_sim(self):
+        for layer_cls in [AtmosphericLossLayer, SatelliteCellGeomLayer,
+                          NTNFadingLayer, PPPInterferenceLayer]:
+            layer = layer_cls()
+            sim = NetworkSimulation()
+            layer.configure(sim)
+            self.assertIs(layer.sim, sim)
 
 
 if __name__ == "__main__":

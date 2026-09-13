@@ -20,8 +20,8 @@ from ..communication_channel.rx_power_calc import Rx_power
 from ..communication_channel.air_objects_class import Air
 from ..position_and_mobility.haps import HAPS_trajectory
 from ..communication_channel.fading_channel_sim import FadingSimulation
-from ..communication_channel.air_2_ground_fading import Fading_channel_air_to_Ground 
-from shadowing_temporally_correlated_AR import ShadowingFading
+from ..communication_channel.air_2_ground_fading import Air_Fading_channel
+from ..communication_channel.shadowing_temporally_correlated_AR import ShadowingFading
 import matplotlib.pyplot as plt
 import pandas as pd
 import copy
