@@ -24,7 +24,8 @@ and calls step per millisecond, merging the returned fragments.
   HAPSLayer, BaseStationLayer, InterferenceLayer (all pre-registered).
   Optional extension layers: GEOLayer, AirObjectsLayer,
   FrequencySelectiveLayer, PPPInterferenceLayer, GaussianFieldLayer,
-  AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer.
+  AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer,
+  ConstellationLayer, SphereUtilLayer, BaseFadingLayer.
 * **ShadowingFading** — selected/configured through the built-in
   ShadowingLayer which is part of the default layer order.  Users
   never instantiate it directly; they configure shadowing via
@@ -379,11 +380,11 @@ def demonstrate_custom_layer() -> None:
 
 
 def demonstrate_new_layers() -> None:
-    """Demonstrate the orchestrator extension layers.
+    """Demonstrate the first batch of orchestrator extension layers.
 
-    Shows how the new SimLayer subclasses—AtmosphericLossLayer and
-    SatelliteCellGeomLayer—can be plugged into the orchestrator via the
-    fluent API without modifying the core simulation loop.
+    Shows how AtmosphericLossLayer and SatelliteCellGeomLayer can be
+    plugged into the orchestrator via the fluent API without modifying
+    the core simulation loop.
     """
     print_section("New layers: atmospheric loss + satellite cell geometry")
 
@@ -403,6 +404,35 @@ def demonstrate_new_layers() -> None:
     print(f"  Registered layers: {[l.name for l in sim.layers]}")
     print(f"  cell_radius_km: {sim.cfg.cell_radius_km}")
     print(f"  detailed_atmospheric_loss: {sim.cfg.detailed_atmospheric_loss}")
+    if sim.results is not None and len(sim.results.p_rx) > 0:
+        print(f"  p_rx rows: {len(sim.results.p_rx)}")
+
+
+def demonstrate_third_batch_layers() -> None:
+    """Demonstrate the second batch of orchestrator extension layers.
+
+    Shows how ConstellationLayer, SphereUtilLayer, and BaseFadingLayer
+    (wrapping the standalone 3DANTS modules constellation.py,
+    sphere_util.py, and fading_channel_sim.py) can be plugged into the
+    orchestrator via the fluent API.
+    """
+    print_section("Third-batch layers: constellation + sphere_util + base_fading")
+
+    sim = (NetworkSimulation(SimulationConfig(
+        num_sat=48, num_planes=4, f=2.0e9, steps=2,
+        max_ms=200,
+        time_start=(2022, 9, 22, 0, 0, 0),
+        time_end=(2022, 9, 22, 2, 0, 0),
+    ))
+     .with_constellation(num_sat=48, num_planes=4)
+     .with_ground_station(lat=53.110987, lon=8.851239)
+     .with_fading(mode="full")
+     .with_constellation_layer()
+     .with_sphere_util()
+     .with_base_fading())
+    sim.run()
+
+    print(f"  Registered layers: {[l.name for l in sim.layers]}")
     if sim.results is not None and len(sim.results.p_rx) > 0:
         print(f"  p_rx rows: {len(sim.results.p_rx)}")
 
@@ -437,8 +467,11 @@ def main():
     # Demonstrate reconfiguration (different fading / frequency).
     demonstrate_reconfiguration()
 
-    # Demonstrate new extension layers.
+    # Demonstrate first-batch extension layers.
     demonstrate_new_layers()
+
+    # Demonstrate second-batch extension layers.
+    demonstrate_third_batch_layers()
 
     # Demonstrate extensibility (custom layer).
     demonstrate_custom_layer()

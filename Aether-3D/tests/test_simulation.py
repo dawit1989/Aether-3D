@@ -44,6 +44,9 @@ GaussianFieldLayer = _sim.GaussianFieldLayer
 AtmosphericLossLayer = _sim.AtmosphericLossLayer
 SatelliteCellGeomLayer = _sim.SatelliteCellGeomLayer
 NTNFadingLayer = _sim.NTNFadingLayer
+ConstellationLayer = _sim.ConstellationLayer
+SphereUtilLayer = _sim.SphereUtilLayer
+BaseFadingLayer = _sim.BaseFadingLayer
 
 
 class TestSimulationConfig(unittest.TestCase):
@@ -252,7 +255,8 @@ class TestNewLayersRegistration(unittest.TestCase):
         names = sim.registry.names()
         for name in ["geo", "air_objects", "freq_selective", "ppp",
                      "gaussian_field", "atmospheric_loss",
-                     "satellite_cell_geom", "ntn_fading"]:
+                     "satellite_cell_geom", "ntn_fading",
+                     "constellation", "sphere_util", "base_fading"]:
             self.assertIn(name, names, f"{name} not registered")
 
     def test_layer_names(self):
@@ -264,6 +268,9 @@ class TestNewLayersRegistration(unittest.TestCase):
         self.assertEqual(AtmosphericLossLayer.name, "atmospheric_loss")
         self.assertEqual(SatelliteCellGeomLayer.name, "satellite_cell_geom")
         self.assertEqual(NTNFadingLayer.name, "ntn_fading")
+        self.assertEqual(ConstellationLayer.name, "constellation")
+        self.assertEqual(SphereUtilLayer.name, "sphere_util")
+        self.assertEqual(BaseFadingLayer.name, "base_fading")
 
 
 class TestNewFluentMethods(unittest.TestCase):
@@ -329,20 +336,41 @@ class TestNewFluentMethods(unittest.TestCase):
             sim.with_geo(),
             sim.with_atmospheric_loss(),
             sim.with_satellite_cell_geom(),
+            sim.with_constellation_layer(),
+            sim.with_sphere_util(),
+            sim.with_base_fading(),
         ]:
             self.assertIs(result, sim)
+
+    def test_with_constellation_layer(self):
+        sim = NetworkSimulation()
+        sim.with_constellation_layer()
+        self.assertIn("constellation", sim.registry.names())
+        self.assertEqual(len(sim.layers), 8)
+
+    def test_with_sphere_util(self):
+        sim = NetworkSimulation()
+        sim.with_sphere_util()
+        self.assertIn("sphere_util", sim.registry.names())
+
+    def test_with_base_fading(self):
+        sim = NetworkSimulation()
+        sim.with_base_fading()
+        self.assertIn("base_fading", sim.registry.names())
 
 
 class TestLayerHooks(unittest.TestCase):
     def test_new_layers_are_simlayer_subclasses(self):
         for cls in [GEOLayer, AirObjectsLayer, FrequencySelectiveLayer,
                     PPPInterferenceLayer, GaussianFieldLayer,
-                    AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer]:
+                    AtmosphericLossLayer, SatelliteCellGeomLayer, NTNFadingLayer,
+                    ConstellationLayer, SphereUtilLayer, BaseFadingLayer]:
             self.assertTrue(issubclass(cls, SimLayer))
 
     def test_new_layer_configure_sets_sim(self):
         for layer_cls in [AtmosphericLossLayer, SatelliteCellGeomLayer,
-                          NTNFadingLayer, PPPInterferenceLayer]:
+                          NTNFadingLayer, PPPInterferenceLayer,
+                          ConstellationLayer, SphereUtilLayer, BaseFadingLayer]:
             layer = layer_cls()
             sim = NetworkSimulation()
             layer.configure(sim)

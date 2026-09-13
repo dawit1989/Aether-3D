@@ -55,6 +55,7 @@ Atmospheric_loss = _cls("3DANTS.communication_channel.atmospheric_loss.Atmospher
 Air = _cls("3DANTS.communication_channel.air_objects_class.Air")
 FrequencySelectiveFadingSimulation = _cls("3DANTS.communication_channel.frequency_selective.FrequencySelectiveFadingSimulation")
 FadingSimulation_Non_terrestrial = _cls("3DANTS.communication_channel.ntn_fading_channel_sim.FadingSimulation_Non_terrestrial")
+FadingSimulation = _cls("3DANTS.communication_channel.fading_channel_sim.FadingSimulation")
 Guassian_Random_filed_generator = _cls("3DANTS.communication_channel.gaussian_field.Guassian_Random_filed_generator")
 
 _analysis = importlib.import_module("3DANTS.analysis")
@@ -775,6 +776,9 @@ class NetworkSimulation:
         self.registry.register("atmospheric_loss", AtmosphericLossLayer)
         self.registry.register("satellite_cell_geom", SatelliteCellGeomLayer)
         self.registry.register("ntn_fading", NTNFadingLayer)
+        self.registry.register("constellation", ConstellationLayer)
+        self.registry.register("sphere_util", SphereUtilLayer)
+        self.registry.register("base_fading", BaseFadingLayer)
         self.layers: List[SimLayer] = [
             self.registry.get(name)() for name in self.DEFAULT_LAYER_ORDER
         ]
@@ -922,6 +926,21 @@ class NetworkSimulation:
     def with_ntn_fading(self) -> "NetworkSimulation":
         """Enable NTN-specific small-scale fading layer."""
         self.add_layer(NTNFadingLayer())
+        return self
+
+    def with_constellation_layer(self) -> "NetworkSimulation":
+        """Enable legacy constellation creation layer."""
+        self.add_layer(ConstellationLayer())
+        return self
+
+    def with_sphere_util(self) -> "NetworkSimulation":
+        """Enable sphere point distribution layer."""
+        self.add_layer(SphereUtilLayer())
+        return self
+
+    def with_base_fading(self) -> "NetworkSimulation":
+        """Enable base FadingSimulation layer."""
+        self.add_layer(BaseFadingLayer())
         return self
 
     def _resolve_layer(self, name: str) -> SimLayer:
@@ -1337,6 +1356,105 @@ class NTNFadingLayer(SimLayer):
         sample = float(batch[idx]) if idx < len(batch) else 0.0
         sim._ntn_fading_idx = idx + 1
         return {"ntn_fading_sample": sample}
+
+
+class ConstellationLayer(SimLayer):
+    """Constellation creation layer (legacy constellation.py).
+
+    Wraps the standalone constellation.py script which generates Walker
+    constellations and computes satellite positions/visibility.  The
+    module is imported lazily (heavy skyfield/sgp4 deps).
+    """
+    name = "constellation"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        self._constellation_mod = importlib.import_module(
+            "3DANTS.position_and_mobility.constellation")
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        cfg = self.sim.cfg
+        return {"constellation_info": {
+            "num_sat": cfg.num_sat, "num_planes": cfg.num_planes,
+            "inclination": cfg.inclination, "h_leo": cfg.h_leo,
+        }}
+
+
+class SphereUtilLayer(SimLayer):
+    """Sphere point distribution layer (sphere_util.py).
+
+    Generates uniformly distributed points on a sphere surface using
+    the inverse-CDF method from sphere_util.py's generate_sphere_points.
+    Useful for satellite placement and coverage analysis.
+    """
+    name = "sphere_util"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        _su = importlib.import_module(
+            "3DANTS.position_and_mobility.sphere_util")
+        self._generate_points = _su.generate_sphere_points
+        self._points = None
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        self._points = None
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        if self._points is None:
+            np.random.seed(self.sim.cfg.seed)
+            xv, yv, zv = self._generate_points(
+                num_points=max(1, self.sim.cfg.num_sat),
+                radius=self.sim.cfg.h_leo / 1000,
+            )
+            self._points = np.column_stack([xv, yv, zv])
+        return {"sphere_points": self._points}
+
+
+class BaseFadingLayer(SimLayer):
+    """Base fading simulation layer (fading_channel_sim.py).
+
+    Wraps the FadingSimulation base class as an alternative to
+    Satellite_Fading_channel (used by FadingLayer) and
+    FadingSimulation_Non_terrestrial (used by NTNFadingLayer).
+    """
+    name = "base_fading"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        self._channel = FadingSimulation(
+            num_samples=cfg.fading_batch_size,
+            fs=cfg.fading_fs_initial,
+            K=5.0,
+            N=cfg.fading_N,
+            h=cfg.h_leo,
+        )
+        sim._base_fading_channel = self._channel
+        sim._base_fading_batch = None
+        sim._base_fading_idx = 0
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        cfg = sim.cfg
+        if hasattr(sim, "_elev0") and hasattr(sim, "_distance_GS_sat"):
+            sim._base_fading_batch = self._channel.run_simulation(
+                sim._elev0, cfg.f, sim._distance_GS_sat)
+            sim._base_fading_idx = 0
+        else:
+            sim._base_fading_batch = None
+            sim._base_fading_idx = 0
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        sim = self.sim
+        batch = sim._base_fading_batch
+        if batch is None:
+            return {"base_fading_sample": 0}
+        idx = sim._base_fading_idx
+        sample = float(batch[idx]) if idx < len(batch) else 0.0
+        sim._base_fading_idx = idx + 1
+        return {"base_fading_sample": sample}
 
 
 def _parse_args(argv=None):
