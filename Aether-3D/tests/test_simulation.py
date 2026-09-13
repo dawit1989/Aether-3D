@@ -80,6 +80,10 @@ class TestSimulationConfig(unittest.TestCase):
         self.assertEqual(cfg.h_leo, 800e3)
         self.assertEqual(cfg.num_sat, 60)
 
+    def test_czml_output_path_default(self):
+        cfg = SimulationConfig()
+        self.assertIsNone(cfg.czml_output_path)
+
 
 class TestNetworkSimulationLayers(unittest.TestCase):
     def test_default_layers(self):
@@ -143,12 +147,25 @@ class TestFluentConfig(unittest.TestCase):
         self.assertEqual(sim.cfg.fading_mode, "scaled")
         self.assertEqual(sim.cfg.f, 2.6e9)
 
+    def test_with_czml(self):
+        sim = NetworkSimulation()
+        result = sim.with_czml("/tmp/test.czml")
+        self.assertIs(result, sim)
+        self.assertEqual(sim.cfg.czml_output_path, "/tmp/test.czml")
+        sim2 = NetworkSimulation()
+        self.assertIsNone(sim2.cfg.czml_output_path)
+
     def test_with_traffic(self):
         sim = NetworkSimulation()
         sim.with_traffic(num_sat=200, haps_rate=20, bs_rates=[5, 3, 2])
         self.assertEqual(sim.cfg.num_sat, 200)
         self.assertEqual(sim.cfg.haps_rate, 20)
         self.assertEqual(sim.cfg.bs_rates, (5, 3, 2))
+
+    def test_save_czml_before_run_raises(self):
+        sim = NetworkSimulation()
+        with self.assertRaises(RuntimeError):
+            sim.save_czml("/tmp/test.czml")
 
     def test_with_haps(self):
         sim = NetworkSimulation()

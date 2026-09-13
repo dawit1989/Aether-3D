@@ -437,6 +437,39 @@ def demonstrate_third_batch_layers() -> None:
         print(f"  p_rx rows: {len(sim.results.p_rx)}")
 
 
+def demonstrate_czml_output() -> None:
+    """Demonstrate CZML output for CesiumJS visualization.
+
+    Runs a small simulation and writes the results to a .czml file
+    that can be loaded into CesiumJS for 3D visualization of satellite
+    trajectories, ground station, and coverage cells.
+    """
+    print_section("CZML output for CesiumJS")
+
+    import tempfile
+    output_path = os.path.join(tempfile.gettempdir(), "3dants_demo.czml")
+
+    sim = (NetworkSimulation(SimulationConfig(
+        num_sat=48, num_planes=4, f=2.0e9, steps=2,
+        max_ms=200,
+        time_start=(2022, 9, 22, 0, 0, 0),
+        time_end=(2022, 9, 22, 2, 0, 0),
+    ))
+     .with_czml(output_path)
+     .with_constellation(num_sat=48, num_planes=4)
+     .with_ground_station(lat=53.110987, lon=8.851239)
+     .with_fading(mode="full"))
+    sim.run()
+
+    print(f"  CZML file written to: {output_path}")
+    if os.path.exists(output_path):
+        import json
+        entities = json.loads(open(output_path).read())
+        print(f"  CZML entities: {len(entities)}")
+    if sim.results is not None and len(sim.results.p_rx) > 0:
+        print(f"  p_rx rows: {len(sim.results.p_rx)}")
+
+
 def main():
     """Run the orchestrator demo end-to-end."""
     print_section("3DANTS Orchestrator Demo")
@@ -475,6 +508,9 @@ def main():
 
     # Demonstrate extensibility (custom layer).
     demonstrate_custom_layer()
+
+    # Demonstrate CZML output for CesiumJS.
+    demonstrate_czml_output()
 
     print_section("Demo complete")
 

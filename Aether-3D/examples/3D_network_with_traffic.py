@@ -65,6 +65,7 @@ classify_interference = _analysis.classify_interference
 detect_interference = _analysis.detect_interference
 build_traffic_models = _analysis.build_traffic_models
 ComponentRegistry = _analysis.ComponentRegistry
+CZMLWriter = _analysis.CZMLWriter
 
 
 @dataclass
@@ -145,6 +146,7 @@ class SimulationConfig:
     max_ms: Optional[int] = None
     plot: bool = False
     verbose: bool = False
+    czml_output_path: Optional[str] = None
 
     # GEO satellite support
     geo_enabled: bool = False
@@ -943,6 +945,27 @@ class NetworkSimulation:
         self.add_layer(BaseFadingLayer())
         return self
 
+    def with_czml(self, path: str) -> "NetworkSimulation":
+        """Enable CZML output for visualization in CesiumJS.
+
+        After run() completes, the simulation results are automatically
+        written to *path* as a .czml file.
+        """
+        self.cfg.czml_output_path = path
+        return self
+
+    def save_czml(self, path: str) -> str:
+        """Write simulation results to a CZML file.
+
+        Raises
+        ------
+        RuntimeError
+            If run() has not been called yet.
+        """
+        if self.results is None:
+            raise RuntimeError("No simulation results. Call run() first.")
+        return CZMLWriter(self.results).write(path)
+
     def _resolve_layer(self, name: str) -> SimLayer:
         """Instantiate a layer from the registry by name."""
         return self.registry.get(name)()
@@ -987,6 +1010,8 @@ class NetworkSimulation:
                 print(i)
 
         self._build_results()
+        if self.cfg.czml_output_path:
+            CZMLWriter(self.results).write(self.cfg.czml_output_path)
         return self
 
     def _record_row(self, ctx: SimpleNamespace) -> None:

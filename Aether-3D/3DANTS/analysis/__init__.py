@@ -25,6 +25,7 @@ from .cdf import empirical_cdf, plot_cdf
 from .traffic import cbr, poisson, bursty, build_traffic_models
 from .plotting import plot_visibility_bars, plot_network_geometry, plot_interference_cdf
 from ._registry import ComponentRegistry
+from .czml_writer import CZMLWriter
 
 __all__ = [
     "compute_simultaneous_visibility",
@@ -50,4 +51,5 @@ __all__ = [
     "plot_network_geometry",
     "plot_interference_cdf",
     "ComponentRegistry",
+    "CZMLWriter",
 ]
