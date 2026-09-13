@@ -216,6 +216,7 @@ class LEO_GEO():
             sat_rise = list()
             sat_set = list()
             lastevent = -1
+            event = None
             for ti, event, cnt in zip(t, events, range(len(events))):
                 if lastevent == -1:
                     if event != 0:
@@ -258,9 +259,13 @@ class LEO_GEO():
                 else:
                     raise RuntimeError("unknown event")
 
-            if event != 2:
+            if event is not None and event != 2:
                 sat_rise.pop()
 
+            # If the satellite had no visibility events, return an
+            # empty DataFrame so the caller can skip it.
+            if not sat_rise:
+                return pd.DataFrame(columns=['Rise', 'Set', 'Satellite', 'Offline', 'end_time'])
             df = pd.DataFrame({'Rise': sat_rise, 'Set': sat_set, 'Satellite': sat.name})
 
             # calculate offline times
@@ -284,6 +289,8 @@ class LEO_GEO():
 
         # find satellite rise and set
         df = None
+        # Satellite has no visibility events during the time window.
+        # Return an empty DataFrame so the caller can skip it.
         with Bar(' ...', max = len(satellites), suffix = '%(index)d/%(max)d  ETA: %(eta)g s') as bar:
             for sat in satellites:
                 if df is None:

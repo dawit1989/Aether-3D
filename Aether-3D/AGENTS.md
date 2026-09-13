@@ -36,6 +36,9 @@ python3 -m pytest tests/test_simulation.py::TestNetworkSimulationLayers -v
 
 # Run an example
 python3 examples/3D_network_with_traffic.py
+
+# Run the orchestrator demo
+python3 examples/orchestrator_demo.py
 ```
 
 ## Coding Style & Naming Conventions

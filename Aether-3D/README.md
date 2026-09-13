@@ -46,6 +46,13 @@ python3 -m pytest tests/ -v
 See `docs/PLAN_3GPP_NUMERICAL_TESTS.md` for the full test plan and
 `docs/REPORT_3GPP_NUMERICAL_TESTS.md` for the detailed test report.
 
+# Examples
+
+- examples/3D_network_with_traffic.py - Full network-with-traffic simulation using the layer-based orchestrator.
+- examples/orchestrator_demo.py - Reference demo showing the configure->compose->run->inspect workflow, including reconfiguration and custom-layer examples.
+
+
+
 # Citation
 If you use the content of thios repository, we ask you kindly to either cite the repository by
 @misc{git_hublink_3DANTS,author = {MohammadAmin Vakilifard and Carsten Bockelmann},title = {{3DANTS}},howpublished = {Available at \url{https://github.com/ant-uni-bremen/3DANTS}}}

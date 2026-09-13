@@ -136,6 +136,7 @@ class SimulationConfig:
 
     # Execution flags
     steps: Optional[int] = None
+    max_ms: Optional[int] = None
     plot: bool = False
     verbose: bool = False
 
@@ -690,6 +691,18 @@ class InterferenceLayer(SimLayer):
             "User_satellite_initial_loc": User_satellite_initial_loc,
             "distance_User_sat_center_beam": distance_User_sat_center_beam,
         }
+def _to_scalar(val) -> float:
+    """Extract a Python float from a scalar or single-element array.
+
+    HAPS and BaseStation layers slice channel-sample arrays, so ctx fields
+    like hips_rx_power and bs_interference elements are 1-element arrays.
+    This helper normalises them to plain floats for DataFrame storage.
+    """
+    if isinstance(val, np.ndarray):
+        return float(val.item())
+    return float(val)
+
+
 class NetworkSimulation:
     """Fluent, layer-based orchestrator for the 3DANTS network-with-traffic simulation.
 
@@ -830,6 +843,8 @@ class NetworkSimulation:
             for layer in self.layers:
                 layer.begin_pass(sim)
             visibility_millisec = int(sim._visibility_millisec)
+            if cfg.max_ms is not None:
+                visibility_millisec = min(visibility_millisec, cfg.max_ms)
             for i1 in range(visibility_millisec):
                 ctx = SimpleNamespace(i1=i1)
                 for layer in self.layers:
@@ -847,42 +862,6 @@ class NetworkSimulation:
 
         self._build_results()
         return self
-
-
-class UAVLayer(SimLayer):
-    """UAV interference layer (extracted from the original Engine).
-
-    Simulates a low-altitude UAV flying a circular trajectory around the
-    ground station and computes the UAV-to-ground-station distance.
-    The interference contribution can be extended by overriding ``step``.
-    """
-    name = "uav"
-
-    def _configure(self, sim: "NetworkSimulation") -> None:
-        super()._configure(sim)
-        cfg = sim.cfg
-        sim._uav = Uav_trajectory(cfg.uav_velocity, cfg.uav_height, time_interval=1)
-        sim._angular_uav, sim._number_step_uav = sim._uav.get_values()
-        sim._shiftak0_uav = 0
-
-    def _configure_pass(self, sim: "NetworkSimulation") -> None:
-        pass
-
-    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
-        sim = self.sim
-        cfg = sim.cfg
-        shiftak_uav = (ctx.i1 + sim._shiftak0_uav) % sim._number_step_uav
-        step_uav = shiftak_uav + 1
-        uav_position = sim._uav.simulate_circular_trajectory(
-            ctx.position_GS + np.array([0, 0, 0.1]),
-            cfg.uav_height, step_uav, ctx.position_GS)
-        distance_uav_to_gs = sim._lg.distance(
-            uav_position[:, :3].flatten(), ctx.position_GS)
-        return {
-            "uav_position": uav_position,
-            "distance_uav_to_gs": distance_uav_to_gs,
-            "uav_rx_power": 0,
-        }
 
     def _record_row(self, ctx: SimpleNamespace) -> None:
         sim = self
@@ -930,15 +909,21 @@ class UAVLayer(SimLayer):
 
     def _assemble_interference_row(self, ctx: SimpleNamespace) -> dict:
         sim = self
+        hips = _to_scalar(ctx.hips_rx_power)
+        bs1 = _to_scalar(ctx.bs_interference[0])
+        bs2 = _to_scalar(ctx.bs_interference[1])
+        bs3 = _to_scalar(ctx.bs_interference[2])
+        p_sat = _to_scalar(ctx.P_rx_User_sat)
+        sinr = _to_scalar(ctx.SINR)
         return {
             'Satellite ID': sim._serving_sat_id if sim._serving_sat_id else sim._sat_id,
             'Time': ctx.time_now.utc_datetime(),
-            'HAPS_rx': 10 * np.log10(ctx.hips_rx_power) if ctx.hips_rx_power > 0 else ctx.Noise_power,
-            'BaseStation1_rx': 10 * np.log10(ctx.bs_interference[0]) if ctx.bs_interference[0] > 0 else ctx.Noise_power,
-            'BaseStation2_rx': 10 * np.log10(ctx.bs_interference[1]) if ctx.bs_interference[1] > 0 else ctx.Noise_power,
-            'BaseStation3_rx': 10 * np.log10(ctx.bs_interference[2]) if ctx.bs_interference[2] > 0 else ctx.Noise_power,
-            'Satellite_rx': ctx.P_rx_User_sat if 10 ** (ctx.P_rx_User_sat / 10) > 0 else ctx.Noise_power,
-            'SINR (dB)': 10 * np.log10(ctx.SINR),
+            'HAPS_rx': 10 * np.log10(hips) if hips > 0 else ctx.Noise_power,
+            'BaseStation1_rx': 10 * np.log10(bs1) if bs1 > 0 else ctx.Noise_power,
+            'BaseStation2_rx': 10 * np.log10(bs2) if bs2 > 0 else ctx.Noise_power,
+            'BaseStation3_rx': 10 * np.log10(bs3) if bs3 > 0 else ctx.Noise_power,
+            'Satellite_rx': p_sat if 10 ** (p_sat / 10) > 0 else ctx.Noise_power,
+            'SINR (dB)': 10 * np.log10(sinr),
         }
 
     def _build_results(self) -> None:
@@ -958,6 +943,43 @@ class UAVLayer(SimLayer):
             visibility=sim._visibility_df,
             config=sim.cfg,
         )
+
+
+class UAVLayer(SimLayer):
+    """UAV interference layer (extracted from the original Engine).
+
+    Simulates a low-altitude UAV flying a circular trajectory around the
+    ground station and computes the UAV-to-ground-station distance.
+    The interference contribution can be extended by overriding ``step``.
+    """
+    name = "uav"
+
+    def _configure(self, sim: "NetworkSimulation") -> None:
+        super()._configure(sim)
+        cfg = sim.cfg
+        sim._uav = Uav_trajectory(cfg.uav_velocity, cfg.uav_height, time_interval=1)
+        sim._angular_uav, sim._number_step_uav = sim._uav.get_values()
+        sim._shiftak0_uav = 0
+
+    def _configure_pass(self, sim: "NetworkSimulation") -> None:
+        pass
+
+    def step(self, ctx: SimpleNamespace) -> Dict[str, Any]:
+        sim = self.sim
+        cfg = sim.cfg
+        shiftak_uav = (ctx.i1 + sim._shiftak0_uav) % sim._number_step_uav
+        step_uav = shiftak_uav + 1
+        uav_position = sim._uav.simulate_circular_trajectory(
+            ctx.position_GS + np.array([0, 0, 0.1]),
+            cfg.uav_height, step_uav, ctx.position_GS)
+        distance_uav_to_gs = sim._lg.distance(
+            uav_position[:, :3].flatten(), ctx.position_GS)
+        return {
+            "uav_position": uav_position,
+            "distance_uav_to_gs": distance_uav_to_gs,
+            "uav_rx_power": 0,
+        }
+
 
 
 def _parse_args(argv=None):
