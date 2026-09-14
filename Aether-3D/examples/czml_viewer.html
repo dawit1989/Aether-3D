@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CZML Viewer — Aether-3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cesium.com/downloads/cesium/standalone/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesium/standalone/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
+  #cesiumContainer { width: 100%; height: 100%; }
+  #toolbar {
+    position: absolute; top: 10px; left: 10px; z-index: 1000;
+    background: rgba(255, 255, 255, 0.9); padding: 8px 12px;
+    border-radius: 6px; font-family: sans-serif; font-size: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  #toolbar label { display: block; margin-bottom: 4px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <label>Load CZML file:</label>
+  <input type="file" id="fileInput" accept=".czml,application/json">
+</div>
+<div id="cesiumContainer"></div>
+
+<script>
+/* Replace with your Cesium ion token (https://cesium.com/ion/key) if
+   you need higher-resolution imagery or terrain. */
+Cesium.Ion.defaultAccessToken = '';
+
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  baseLayerPicker: false,
+  timeline: true,
+  animation: true,
+  fullscreenButton: true,
+  scene3DModePicker: true,
+  selectionModePicker: false,
+  baseImageryProvider: new Cesium.OpenStreetMapImageryProvider({
+    url: 'https://a.tile.openstreetmap.org/'
+  })
+});
+
+// Hide the default base-layer message.
+viewer.scene.globe.enableLighting = false;
+
+document.getElementById('fileInput').addEventListener('change', function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    let czml;
+    try {
+      czml = JSON.parse(e.target.result);
+    } catch (err) {
+      alert('Could not parse CZML: ' + err.message);
+      return;
+    }
+
+    /* Remove previously loaded CZML data sources. */
+    while (viewer.dataSources._dataSources.length > 0) {
+      viewer.dataSources.remove(viewer.dataSources._dataSources[0], true);
+    }
+
+    Cesium.CzmlDataSource.load(czml).then(function (dataSource) {
+      viewer.dataSources.add(dataSource);
+      viewer.flyTo(dataSource);
+      /* Auto-play if the CZML has time-dynamic data. */
+      if (dataSource.clock) {
+        viewer.clock = dataSource.clock;
+        viewer.clock.shouldAnimate = true;
+      }
+    }).otherwise(function (err) {
+      alert('Error loading CZML: ' + err);
+    });
+  };
+  reader.readAsText(file);
+});
+</script>
+</body>
+</html>
