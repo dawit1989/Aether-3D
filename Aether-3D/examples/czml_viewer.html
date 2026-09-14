@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <title>CZML Viewer — Aether-3D</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- CesiumJS from npm via unpkg (v1.145.0) -->
-<script>window.CESIUM_BASE_URL = "https://unpkg.com/cesium/Build/Cesium/";</script>
+<script>
+  /* Must be set before Cesium.js loads — tells Cesium where to find
+     shaders, workers, textures, and other runtime assets. */
+  window.CESIUM_BASE_URL = "https://unpkg.com/cesium/Build/Cesium/";
+</script>
 <script src="https://unpkg.com/cesium/Build/Cesium/Cesium.js"></script>
 <link href="https://unpkg.com/cesium/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet">
@@ -29,37 +32,41 @@
 <div id="cesiumContainer"></div>
 
 <script>
-/* Replace with your Cesium ion token (https://cesium.com/ion/key) if
-   you need higher-resolution imagery or terrain. */
-Cesium.Ion.defaultAccessToken = '';
+console.log("CesiumJS version:", Cesium.VERSION);
+console.log("Cesium.buildRoot:", Cesium.buildRoot);
 
-const viewer = new Cesium.Viewer('cesiumContainer', {
+/* Replace with your Cesium ion token (https://cesium.com/ion/key)
+   if you need higher-resolution imagery or terrain.
+   Without a token, the globe renders with a default base layer. */
+Cesium.Ion.defaultAccessToken = "";
+
+// Fallback: set buildRoot explicitly after script load
+Cesium.buildRoot = "https://unpkg.com/cesium/Build/Cesium/";
+
+var viewer = new Cesium.Viewer("cesiumContainer", {
   baseLayerPicker: false,
   timeline: true,
   animation: true,
   fullscreenButton: true,
   scene3DModePicker: true,
   selectionModePicker: false,
-  baseImageryProvider: new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://tile.openstreetmap.org/'
-  })
+  infoBox: false,
 });
 
-document.getElementById('fileInput').addEventListener('change', function (event) {
-  const file = event.target.files[0];
+document.getElementById("fileInput").addEventListener("change", function (event) {
+  var file = event.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function (e) {
-    let czml;
+    var czml;
     try {
       czml = JSON.parse(e.target.result);
     } catch (err) {
-      alert('Could not parse CZML: ' + err.message);
+      alert("Could not parse CZML: " + err.message);
       return;
     }
 
-    /* Remove previously loaded CZML data sources. */
     while (viewer.dataSources._dataSources.length > 0) {
       viewer.dataSources.remove(viewer.dataSources._dataSources[0], true);
     }
@@ -67,13 +74,12 @@ document.getElementById('fileInput').addEventListener('change', function (event)
     Cesium.CzmlDataSource.load(czml).then(function (dataSource) {
       viewer.dataSources.add(dataSource);
       viewer.flyTo(dataSource);
-      /* Auto-play if the CZML has time-dynamic data. */
       if (dataSource.clock) {
         viewer.clock = dataSource.clock;
         viewer.clock.shouldAnimate = true;
       }
     }).otherwise(function (err) {
-      alert('Error loading CZML: ' + err);
+      alert("Error loading CZML: " + err);
     });
   };
   reader.readAsText(file);
