@@ -25,7 +25,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    with socketserver.ThreadingTCPServer(("", PORT), Handler) as httpd:
+        httpd.daemon_threads = True
         print(f"Serving CZML viewer at http://localhost:{PORT}/czml_viewer.html")
         print("Press Ctrl+C to stop.")
         httpd.serve_forever()
