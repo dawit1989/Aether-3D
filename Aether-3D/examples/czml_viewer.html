@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <title>CZML Viewer — Aether-3D</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cesium.com/downloads/cesium/standalone/Build/Cesium/Cesium.js"></script>
-<link href="https://cesium.com/downloads/cesium/standalone/Build/Cesium/Widgets/widgets.css"
+<!-- CesiumJS from npm via unpkg (v1.145.0) -->
+<script>window.CESIUM_BASE_URL = "https://unpkg.com/cesium/Build/Cesium/";</script>
+<script src="https://unpkg.com/cesium/Build/Cesium/Cesium.js"></script>
+<link href="https://unpkg.com/cesium/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
@@ -39,12 +41,9 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   scene3DModePicker: true,
   selectionModePicker: false,
   baseImageryProvider: new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://a.tile.openstreetmap.org/'
+    url: 'https://tile.openstreetmap.org/'
   })
 });
-
-// Hide the default base-layer message.
-viewer.scene.globe.enableLighting = false;
 
 document.getElementById('fileInput').addEventListener('change', function (event) {
   const file = event.target.files[0];
