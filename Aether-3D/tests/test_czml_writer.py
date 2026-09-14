@@ -133,6 +133,101 @@ def make_mock_results():
     )
 
 
+def make_mock_results_string_ids():
+    """Create mock SimulationResults with string satellite IDs (like real output).
+
+    Real orchestrator output uses string IDs like 'Sat 1', 'Sat 2' — this
+    would crash the original float(sat_id) code. This mock verifies the fix.
+    """
+    cfg = make_mock_config()
+
+    t0 = datetime(2022, 9, 22, 0, 0, 0)
+    t1 = datetime(2022, 9, 22, 0, 0, 1)
+    t2 = datetime(2022, 9, 22, 0, 0, 2)
+
+    sat_position = pd.DataFrame([
+        {"Satellite ID": "Sat 1", "Time": t0,
+         "Sat Position (km)": np.array([7000.0, 0.0, 0.0])},
+        {"Satellite ID": "Sat 1", "Time": t1,
+         "Sat Position (km)": np.array([6900.0, 1000.0, 0.0])},
+        {"Satellite ID": "Sat 1", "Time": t2,
+         "Sat Position (km)": np.array([6800.0, 2000.0, 0.0])},
+        {"Satellite ID": "Sat 2", "Time": t0,
+         "Sat Position (km)": np.array([0.0, 7000.0, 0.0])},
+        {"Satellite ID": "Sat 2", "Time": t1,
+         "Sat Position (km)": np.array([0.0, 6900.0, 1000.0])},
+        {"Satellite ID": "Sat 2", "Time": t2,
+         "Sat Position (km)": np.array([0.0, 6800.0, 2000.0])},
+    ])
+
+    p_rx = pd.DataFrame([
+        {"Satellite ID": "Sat 1", "Time": t0, "P_rx_at_User (dBW)": -80.0,
+         "SNR (dB)": 5.0, "Distance (km)": 1000.0},
+        {"Satellite ID": "Sat 1", "Time": t1, "P_rx_at_User (dBW)": -85.0,
+         "SNR (dB)": 0.0, "Distance (km)": 1100.0},
+        {"Satellite ID": "Sat 1", "Time": t2, "P_rx_at_User (dBW)": -90.0,
+         "SNR (dB)": -5.0, "Distance (km)": 1200.0},
+        {"Satellite ID": "Sat 2", "Time": t0, "P_rx_at_User (dBW)": -70.0,
+         "SNR (dB)": 15.0, "Distance (km)": 800.0},
+        {"Satellite ID": "Sat 2", "Time": t1, "P_rx_at_User (dBW)": -75.0,
+         "SNR (dB)": 10.0, "Distance (km)": 900.0},
+        {"Satellite ID": "Sat 2", "Time": t2, "P_rx_at_User (dBW)": -80.0,
+         "SNR (dB)": 5.0, "Distance (km)": 1000.0},
+    ])
+
+    sat_orbital = pd.DataFrame([
+        {"Satellite ID": "Sat 1", "Time": t0,
+         "Theta_el_sat_see_vsat": 45.0, "Theta_az_sat_see_vsat": 90.0,
+         "theta_el_vsat_see_sat": 30.0, "theta_az_vsat_see_sat": 60.0},
+        {"Satellite ID": "Sat 1", "Time": t1,
+         "Theta_el_sat_see_vsat": 50.0, "Theta_az_sat_see_vsat": 95.0,
+         "theta_el_vsat_see_sat": 35.0, "theta_az_vsat_see_sat": 65.0},
+        {"Satellite ID": "Sat 1", "Time": t2,
+         "Theta_el_sat_see_vsat": 55.0, "Theta_az_sat_see_vsat": 100.0,
+         "theta_el_vsat_see_sat": 40.0, "theta_az_vsat_see_sat": 70.0},
+        {"Satellite ID": "Sat 2", "Time": t0,
+         "Theta_el_sat_see_vsat": 40.0, "Theta_az_sat_see_vsat": 80.0,
+         "theta_el_vsat_see_sat": 25.0, "theta_az_vsat_see_sat": 55.0},
+        {"Satellite ID": "Sat 2", "Time": t1,
+         "Theta_el_sat_see_vsat": 45.0, "Theta_az_sat_see_vsat": 85.0,
+         "theta_el_vsat_see_sat": 30.0, "theta_az_vsat_see_sat": 60.0},
+        {"Satellite ID": "Sat 2", "Time": t2,
+         "Theta_el_sat_see_vsat": 50.0, "Theta_az_sat_see_vsat": 90.0,
+         "theta_el_vsat_see_sat": 35.0, "theta_az_vsat_see_sat": 65.0},
+    ])
+
+    interference = pd.DataFrame([
+        {"Satellite ID": "Sat 1", "Time": t0, "SINR (dB)": 4.0},
+        {"Satellite ID": "Sat 1", "Time": t1, "SINR (dB)": -1.0},
+        {"Satellite ID": "Sat 1", "Time": t2, "SINR (dB)": -6.0},
+        {"Satellite ID": "Sat 2", "Time": t0, "SINR (dB)": 14.0},
+        {"Satellite ID": "Sat 2", "Time": t1, "SINR (dB)": 9.0},
+        {"Satellite ID": "Sat 2", "Time": t2, "SINR (dB)": 4.0},
+    ])
+
+    channel = pd.DataFrame([
+        {"Satellite ID": "Sat 1", "Time": t0,
+         "small scale fading-channel": complex(0.5, 0.3),
+         "large scale shadowing": 1.2},
+        {"Satellite ID": "Sat 1", "Time": t1,
+         "small scale fading-channel": complex(0.4, 0.2),
+         "large scale shadowing": 0.8},
+        {"Satellite ID": "Sat 2", "Time": t0,
+         "small scale fading-channel": complex(0.6, 0.1),
+         "large scale shadowing": 2.1},
+    ])
+
+    return SimpleNamespace(
+        sat_position=sat_position,
+        sat_orbital_params=sat_orbital,
+        satellite_channel_time_series=channel,
+        p_rx=p_rx,
+        interference=interference,
+        visibility=pd.DataFrame(),
+        config=cfg,
+    )
+
+
 def _find_entity(entities, entity_id):
     """Return the entity dict with the given id, or None."""
     for e in entities:
@@ -291,6 +386,135 @@ class TestCZMLWriterHelpers(unittest.TestCase):
         """Positions must be scaled by 1000."""
         pos_m = _mod._ecef_km_to_m([1.0, 2.0, 3.0])
         np.testing.assert_array_equal(pos_m, [1000.0, 2000.0, 3000.0])
+
+
+class TestCZMLStringSatelliteIDs(unittest.TestCase):
+    """Tests using string satellite IDs — matches real orchestrator output."""
+
+    def setUp(self):
+        self.writer = CZMLWriter(make_mock_results_string_ids())
+        self.entities = json.loads(self.writer.to_czml())
+
+    def test_string_ids_do_not_crash(self):
+        """The original float(sat_id) would crash with 'Sat 1' IDs."""
+        # If this line doesn't raise, the bug is fixed.
+        data = json.loads(self.writer.to_czml())
+        self.assertIsInstance(data, list)
+
+    def test_sanitized_entity_ids(self):
+        """Entity IDs must not contain spaces."""
+        ids = [e.get("id", "") for e in self.entities]
+        for eid in ids:
+            self.assertNotIn(" ", eid,
+                             f"Entity ID '{eid}' contains a space")
+
+    def test_satellite_id_property_is_string(self):
+        """satelliteId property should be a string for string IDs."""
+        sat = _find_entity(self.entities, "sat_Sat_1")
+        self.assertIsNotNone(sat)
+        sid = sat["properties"]["satelliteId"]
+        self.assertIn("string", sid)
+        self.assertEqual(sid["string"], "Sat 1")
+
+    def test_entity_count_with_string_ids(self):
+        """Expect: document + GS + 2 sats + 2 coverage = 6 entities."""
+        self.assertEqual(len(self.entities), 6)
+
+    def test_prx_value_with_string_ids(self):
+        """Satellite 'Sat 1' mean P_Rx should be -85 dBW."""
+        sat = _find_entity(self.entities, "sat_Sat_1")
+        self.assertAlmostEqual(sat["properties"]["meanPRx"]["number"], -85.0,
+                               places=2)
+
+    def test_channel_properties_with_string_ids(self):
+        """Satellite entity should include channel time-series properties."""
+        sat = _find_entity(self.entities, "sat_Sat_1")
+        props = sat["properties"]
+        self.assertIn("mean_large scale shadowing", props)
+
+
+class TestCZMLGeodesicCircle(unittest.TestCase):
+    """Tests for the improved geodesic coverage circle."""
+
+    def test_high_latitude_circle(self):
+        """Circle near the pole should not be degenerate."""
+        circle = _mod._coverage_circle(85.0, 45.0, 25.0, 16)
+        self.assertEqual(len(circle), 48)
+        lons = circle[0::3]
+        lats = circle[1::3]
+        # All latitudes should be reasonably close to 85°
+        for lat in lats:
+            self.assertGreater(lat, 80.0,
+                               "High-latitude circle latitude too low")
+
+    def test_circle_at_pole(self):
+        """Circle at the North Pole should produce valid vertices."""
+        circle = _mod._coverage_circle(90.0, 0.0, 25.0, 16)
+        self.assertEqual(len(circle), 48)
+        # At the pole, the planar fallback would produce NaN for dlon
+        # (division by cos(90°) = 0). The geodesic path should handle it.
+
+    def test_circle_radius_zero(self):
+        """Zero-radius circle should produce all center coordinates."""
+        circle = _mod._coverage_circle(45.0, 45.0, 0.0, 16)
+        self.assertEqual(len(circle), 48)
+        for i in range(16):
+            self.assertAlmostEqual(circle[i * 3], 45.0, places=3)
+            self.assertAlmostEqual(circle[i * 3 + 1], 45.0, places=3)
+
+
+class TestCZMLHelpersEdgeCases(unittest.TestCase):
+
+    def test_safe_mean_with_nan(self):
+        """_safe_mean should ignore NaN values."""
+        result = _mod._safe_mean([1.0, float('nan'), 3.0])
+        self.assertAlmostEqual(result, 2.0, places=6)
+
+    def test_safe_mean_empty(self):
+        """_safe_mean with empty array should return default."""
+        result = _mod._safe_mean([], default=-99.0)
+        self.assertEqual(result, -99.0)
+
+    def test_safe_mean_all_nan(self):
+        """_safe_mean with all NaN should return default."""
+        result = _mod._safe_mean([float('nan'), float('nan')], default=-99.0)
+        self.assertEqual(result, -99.0)
+
+    def test_is_numeric_int(self):
+        """Integers are numeric."""
+        self.assertTrue(_mod._is_numeric(1))
+
+    def test_is_numeric_float(self):
+        """Floats are numeric."""
+        self.assertTrue(_mod._is_numeric(3.14))
+
+    def test_is_numeric_string_int(self):
+        """Numeric strings are numeric."""
+        self.assertTrue(_mod._is_numeric("42"))
+
+    def test_is_numeric_string_text(self):
+        """Non-numeric strings are not numeric."""
+        self.assertFalse(_mod._is_numeric("Sat 1"))
+
+    def test_is_numeric_none(self):
+        """None is not numeric."""
+        self.assertFalse(_mod._is_numeric(None))
+
+    def test_sanitize_id_with_space(self):
+        """Sanitize should replace spaces with underscores."""
+        self.assertEqual(_mod._sanitize_id("Sat 1"), "Sat_1")
+
+    def test_sanitize_id_with_dash(self):
+        """Sanitize should replace dashes with underscores."""
+        self.assertEqual(_mod._sanitize_id("Sat-1"), "Sat_1")
+
+    def test_sanitize_id_numeric(self):
+        """Sanitize should handle numeric IDs."""
+        self.assertEqual(_mod._sanitize_id(1), "1")
+
+    def test_sanitize_id_with_dot(self):
+        """Sanitize should replace dots with underscores."""
+        self.assertEqual(_mod._sanitize_id("Sat.1"), "Sat_1")
 
 
 if __name__ == "__main__":

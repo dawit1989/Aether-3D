@@ -24,6 +24,12 @@ try:
 except ImportError:
     _HAS_MPL = False
 
+try:
+    from pyproj import Geod
+    _HAS_PYPROJ = True
+except ImportError:
+    _HAS_PYPROJ = False
+
 
 # ---------------------------------------------------------------------------
 # Coordinate / colour helpers
@@ -64,17 +70,26 @@ def _coverage_circle(lat_deg: float, lon_deg: float,
                      radius_km: float, n: int = 16) -> List[float]:
     """Generate *n* lon/lat/height points on a circle around lat_deg, lon_deg.
 
-    Uses the planar approximation (1 degree ≈ 111.32 km) which is accurate
-    enough for small (~25 km) coverage cells used in visualization.
+    Uses ``pyproj.Geod`` for accurate geodesic circles on the WGS84
+    ellipsoid when available.  Falls back to a planar approximation
+    (1 degree ≈ 111.32 km) otherwise — sufficient for small (~25 km)
+    coverage cells near the equator.
     """
     points: List[float] = []
-    dlat = radius_km / 111320.0
-    dlon = radius_km / (111320.0 * np.cos(np.radians(lat_deg)))
-    for i in range(n):
-        a = 2 * np.pi * i / n
-        clat = lat_deg + dlat * np.cos(a)
-        clon = lon_deg + dlon * np.sin(a)
-        points.extend([clon, clat, 0.0])
+    if _HAS_PYPROJ:
+        geod = Geod(ellps="WGS84")
+        for i in range(n):
+            azimuth = 360.0 * i / n
+            lon, lat, _ = geod.fwd(lon_deg, lat_deg, azimuth, radius_km * 1000)
+            points.extend([lon, lat, 0.0])
+    else:
+        dlat = radius_km / 111320.0
+        dlon = radius_km / (111320.0 * np.cos(np.radians(lat_deg)))
+        for i in range(n):
+            a = 2 * np.pi * i / n
+            clat = lat_deg + dlat * np.cos(a)
+            clon = lon_deg + dlon * np.sin(a)
+            points.extend([clon, clat, 0.0])
     return points
 
 
@@ -83,6 +98,24 @@ def _to_float(val: Any) -> float:
     if isinstance(val, np.ndarray):
         return float(val.item())
     return float(val)
+
+
+def _is_numeric(val: Any) -> bool:
+    """Check if *val* can be converted to a Python float."""
+    try:
+        float(val)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def _sanitize_id(sat_id: Any) -> str:
+    """Convert a satellite identifier to a URL-safe CZML entity id fragment.
+
+    Spaces and special characters are replaced with underscores so that
+    CZML entity ids are always valid (e.g. "Sat 1" -> "Sat_1").
+    """
+    return str(sat_id).replace(" ", "_").replace("-", "_").replace(".", "_")
 
 
 def _safe_mean(values: Any, default: float = 0.0) -> float:
@@ -160,6 +193,8 @@ class CZMLWriter:
             getattr(self.results, 'sat_orbital_params', None))
         interference_groups = _group_by_satellite(
             getattr(self.results, 'interference', None))
+        channel_groups = _group_by_satellite(
+            getattr(self.results, 'satellite_channel_time_series', None))
 
         for sat_id, group in sat_groups.items():
             group = self._subsample(group)
@@ -168,6 +203,7 @@ class CZMLWriter:
                 p_rx_groups.get(sat_id, None),
                 orbital_groups.get(sat_id, None),
                 interference_groups.get(sat_id, None),
+                channel_groups.get(sat_id, None),
             ))
             entities.append(self._coverage_polygon_entity(sat_id, group, epoch_dt))
 
@@ -219,7 +255,8 @@ class CZMLWriter:
                           epoch_dt: datetime,
                           p_rx_group: Optional[pd.DataFrame],
                           orbital_group: Optional[pd.DataFrame],
-                          interference_group: Optional[pd.DataFrame]) -> Dict:
+                          interference_group: Optional[pd.DataFrame],
+                          channel_group: Optional[pd.DataFrame] = None) -> Dict:
         """Build a time-dynamic satellite trajectory entity."""
         # -- positions (ECEF, meters) ----------------------------------
         raw_positions = group['Sat Position (km)'].tolist()
@@ -244,8 +281,16 @@ class CZMLWriter:
         colour = _pwr_to_rgba(mean_p_rx)
 
         # -- entity properties -------------------------------------------
+        # Handle both numeric and string satellite IDs gracefully.
+        # Real orchestrator output uses string IDs like "Sat 1", so
+        # float(sat_id) would raise ValueError.
+        if _is_numeric(sat_id):
+            satellite_id_prop = {"number": _to_float(sat_id)}
+        else:
+            satellite_id_prop = {"string": str(sat_id)}
+
         properties: Dict[str, Any] = {
-            "satelliteId": {"number": float(sat_id)},
+            "satelliteId": satellite_id_prop,
             "meanPRx": {"number": round(mean_p_rx, 2)},
         }
 
@@ -268,8 +313,17 @@ class CZMLWriter:
                     properties[f"mean_{col}"] = {
                         "number": round(_safe_mean(orbital_group[col]), 4)}
 
+        if channel_group is not None:
+            for col in ['small scale fading-channel', 'large scale shadowing']:
+                if col in channel_group.columns:
+                    values = channel_group[col].dropna().values
+                    if len(values) > 0:
+                        properties[f"mean_{col}"] = {
+                            "number": round(float(np.mean(
+                                np.abs(values))), 4)}
+
         return {
-            "id": f"sat_{sat_id}",
+            "id": f"sat_{_sanitize_id(sat_id)}",
             "name": f"Satellite {sat_id}",
             "description": (
                 f"Satellite {sat_id} — mean P_Rx: {mean_p_rx:.1f} dBW"),
@@ -309,7 +363,7 @@ class CZMLWriter:
             cartographic.extend(circle)
 
         return {
-            "id": f"coverage_sat_{sat_id}",
+            "id": f"coverage_sat_{_sanitize_id(sat_id)}",
             "name": f"Satellite {sat_id} Coverage",
             "description": f"Coverage area (radius: {radius_km} km) for satellite {sat_id}",
             "polygon": {
