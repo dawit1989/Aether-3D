@@ -1,4 +1,4 @@
-"""Utility script to convert legacy cartesian4 positions into standard CZML cartesian positions."""
+"""Utility script to convert legacy CZML files into standard Cesium-compliant CZML."""
 import json
 import os
 import sys
@@ -19,15 +19,43 @@ def fix_czml_packet(packet):
                     x, y, z, t = c4[i], c4[i+1], c4[i+2], c4[i+3]
                     c.extend([t, x, y, z])
             pos["cartesian"] = c
+        elif "cartesian" in pos:
+            # Ensure time t is first element if formatted as [x,y,z,t]
+            c = pos["cartesian"]
+            if len(c) >= 4 and c[0] > 1000: # X ECEF coordinate is in millions
+                fixed_c = []
+                for i in range(0, len(c), 4):
+                    if i + 3 < len(c):
+                        x, y, z, t = c[i], c[i+1], c[i+2], c[i+3]
+                        fixed_c.extend([t, x, y, z])
+                pos["cartesian"] = fixed_c
 
-    # Fix coverage polygon positions if needed
+    # Fix coverage polygon positions
     if "polygon" in packet and isinstance(packet["polygon"], dict):
         poly = packet["polygon"]
         if "positions" in poly and isinstance(poly["positions"], dict):
             poly_pos = poly["positions"]
-            if "cartographicDegrees" in poly_pos and "epoch" in poly_pos:
-                # Remove epoch if cartographicDegrees is a flat 3D coordinates array
-                poly_pos.pop("epoch", None)
+            poly_pos.pop("epoch", None)
+            if "cartographicDegrees" in poly_pos:
+                coords = poly_pos["cartographicDegrees"]
+                # Strip out time offsets (like 0.0, 30.0, 60.0) that leave len % 3 != 0
+                cleaned_coords = []
+                idx = 0
+                while idx < len(coords):
+                    # Check if element at idx is a time offset (e.g. 0.0, 30.0, 60.0, 90.0, etc.)
+                    # and the remaining elements can form triplets of [lon, lat, height]
+                    if (len(coords) - idx) % 3 != 0:
+                        idx += 1 # Skip time offset
+                    else:
+                        cleaned_coords.append(coords[idx])
+                        idx += 1
+                
+                # Truncate to exact multiple of 3 if needed
+                rem = len(cleaned_coords) % 3
+                if rem != 0:
+                    cleaned_coords = cleaned_coords[:-rem]
+                
+                poly_pos["cartographicDegrees"] = cleaned_coords
 
     return packet
 
