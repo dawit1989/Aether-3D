@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+> **Full project context** (architecture, modules, APIs, channel models,
+> testing, extension points) is in [`CONTEXT.md`](../CONTEXT.md) at the
+> repository root.
+
 ## Project Structure & Module Organization
 
 ```
