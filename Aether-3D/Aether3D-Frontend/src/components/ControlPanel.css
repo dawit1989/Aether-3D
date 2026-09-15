@@ -1,0 +1,123 @@
+/* ControlPanel component styles */
+
+.control-panel {
+  padding: 16px;
+}
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-icon {
+  font-size: 16px;
+}
+
+.toggle-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e8e8f0;
+}
+
+.toggle-desc {
+  font-size: 11px;
+  color: #808090;
+}
+
+/* Switch toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.2);
+  transition: 0.2s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: #fff;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background: rgba(100, 200, 255, 0.5);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.viz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.viz-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.viz-label {
+  font-size: 12px;
+  color: #a0a0b0;
+}
+
+.viz-select {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #e8e8f0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.viz-select:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}

@@ -1,0 +1,44 @@
+{
+  "name": "aether3d-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aether3D-Frontend — React + CesiumJS 3D visualization for the Aether-3D (formerly 3DANTS) satellite simulator",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "host": "vite --host",
+    "lint": "eslint . --ext js,jsx --fix",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "satellite",
+    "simulator",
+    "cesium",
+    "3d",
+    "5g",
+    "6g",
+    "orbit",
+    "visualization",
+    "aether3d",
+    "3dants"
+  ],
+  "dependencies": {
+    "cesium": "^1.125.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.57.1",
+    "@vitejs/plugin-react": "^4.4.1",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3",
+    "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  }
+}

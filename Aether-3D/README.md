@@ -50,6 +50,25 @@ See `docs/PLAN_3GPP_NUMERICAL_TESTS.md` for the full test plan and
 
 - examples/3D_network_with_traffic.py - Full network-with-traffic simulation using the layer-based orchestrator.
 - examples/orchestrator_demo.py - Reference demo showing the configure->compose->run->inspect workflow, including reconfiguration and custom-layer examples.
+- Aether3D-Frontend/ - React + CesiumJS web application for 3D visualization of simulation results. See `Aether3D-Frontend/README.md` for details.
+
+# Web Visualization: Aether3D-Frontend
+
+The `Aether3D-Frontend/` directory contains a React + Vite + CesiumJS web
+application that renders 3D visualizations of satellite simulations. It
+supports CZML file loading, entity picking with channel-quality metrics,
+layer toggles, and optional REST API integration.
+
+```bash
+cd Aether3D-Frontend
+npm install          # install dependencies
+npm run dev          # start development server at http://localhost:5173
+npm run build        # production build to dist/
+```
+
+The frontend loads CZML files produced by the simulator's `CZMLWriter`
+(`3DANTS/analysis/czml_writer.py`) and displays satellites, ground stations,
+coverage cells, HAPS, and base stations on an interactive 3D globe.
 
 
 

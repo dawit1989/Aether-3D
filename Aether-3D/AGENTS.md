@@ -10,6 +10,14 @@ Aether-3D/
 |   |-- position_and_mobility/
 |   |-- Traffic/
 |   |-- __init__.py
+|-- Aether3D-Frontend/  # React + CesiumJS web visualization
+|   |-- src/
+|   |   |-- components/
+|   |   |-- hooks/
+|   |   |-- utils/
+|   |   |-- App.jsx
+|   |   `-- main.jsx
+|   `-- package.json
 |-- docs/
 |-- tests/
 |-- examples/
@@ -25,6 +33,9 @@ imported with a plain `import` statement. Use `importlib.import_module` instead.
 ```bash
 # Install dependencies
 
+# Install frontend dependencies
+cd Aether3D-Frontend && npm install
+
 # Run all tests
 python3 -m pytest tests/ -v
 
@@ -39,6 +50,11 @@ python3 examples/3D_network_with_traffic.py
 
 # Run the orchestrator demo
 python3 examples/orchestrator_demo.py
+
+# Frontend (Aether3D-Frontend/)
+npm run dev        # development server at http://localhost:5173
+npm run build      # production build to dist/
+npm run lint       # ESLint with auto-fix
 ```
 
 ## Coding Style & Naming Conventions
