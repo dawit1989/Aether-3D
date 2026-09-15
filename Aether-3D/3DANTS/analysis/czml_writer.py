@@ -266,11 +266,11 @@ class CZMLWriter:
         times = pd.to_datetime(group['Time'])
         offsets = (times - epoch_dt).dt.total_seconds().tolist()
 
-        # -- build cartesian4: [x, y, z, t, x, y, z, t, ...] -----------
-        cartesian4: List[float] = []
+        # -- build cartesian: [t, x, y, z, t, x, y, z, ...] -----------
+        cartesian: List[float] = []
         for pos_m, t_off in zip(positions_m, offsets):
-            cartesian4.extend([
-                float(pos_m[0]), float(pos_m[1]), float(pos_m[2]), float(t_off),
+            cartesian.extend([
+                float(t_off), float(pos_m[0]), float(pos_m[1]), float(pos_m[2]),
             ])
 
         # -- mean P_Rx → path colour -----------------------------------
@@ -282,8 +282,6 @@ class CZMLWriter:
 
         # -- entity properties -------------------------------------------
         # Handle both numeric and string satellite IDs gracefully.
-        # Real orchestrator output uses string IDs like "Sat 1", so
-        # float(sat_id) would raise ValueError.
         if _is_numeric(sat_id):
             satellite_id_prop = {"number": _to_float(sat_id)}
         else:
@@ -329,7 +327,7 @@ class CZMLWriter:
                 f"Satellite {sat_id} — mean P_Rx: {mean_p_rx:.1f} dBW"),
             "position": {
                 "epoch": epoch_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "cartesian4": cartesian4,
+                "cartesian": cartesian,
             },
             "path": {
                 "material": {"solidColor": {"color": _rgba(*colour)}},
@@ -348,19 +346,12 @@ class CZMLWriter:
 
     def _coverage_polygon_entity(self, sat_id: Any, group: pd.DataFrame,
                                  epoch_dt: datetime) -> Dict:
-        """Build a time-dynamic coverage polygon for a single satellite."""
+        """Build a coverage polygon for a satellite sub-point."""
         radius_km = self.cfg.cell_radius_km
-        times = pd.to_datetime(group['Time'])
-        offsets = (times - epoch_dt).dt.total_seconds().tolist()
-        epoch_iso = epoch_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        cartographic: List[float] = []
-        for pos_km, t_off in zip(group['Sat Position (km)'].tolist(), offsets):
-            pos_m = _ecef_km_to_m(pos_km)
-            lat, lon = _sub_satellite_latlon(pos_m[0], pos_m[1], pos_m[2])
-            circle = _coverage_circle(lat, lon, radius_km, self.circle_points)
-            cartographic.append(float(t_off))
-            cartographic.extend(circle)
+        first_pos_km = group['Sat Position (km)'].iloc[0]
+        pos_m = _ecef_km_to_m(first_pos_km)
+        lat, lon = _sub_satellite_latlon(pos_m[0], pos_m[1], pos_m[2])
+        circle = _coverage_circle(lat, lon, radius_km, self.circle_points)
 
         return {
             "id": f"coverage_sat_{_sanitize_id(sat_id)}",
@@ -368,8 +359,7 @@ class CZMLWriter:
             "description": f"Coverage area (radius: {radius_km} km) for satellite {sat_id}",
             "polygon": {
                 "positions": {
-                    "epoch": epoch_iso,
-                    "cartographicDegrees": cartographic,
+                    "cartographicDegrees": circle,
                 },
                 "material": {"solidColor": {"color": _rgba(255, 255, 0, 100)}},
                 "perPositionHeight": True,
