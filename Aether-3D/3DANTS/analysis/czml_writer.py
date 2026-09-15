@@ -66,31 +66,56 @@ def _sub_satellite_latlon(x_m: float, y_m: float, z_m: float) -> Tuple[float, fl
     return float(lat), float(lon)
 
 
-def _coverage_circle(lat_deg: float, lon_deg: float,
-                     radius_km: float, n: int = 16) -> List[float]:
-    """Generate *n* lon/lat/height points on a circle around lat_deg, lon_deg.
-
-    Uses ``pyproj.Geod`` for accurate geodesic circles on the WGS84
-    ellipsoid when available.  Falls back to a planar approximation
-    (1 degree ≈ 111.32 km) otherwise — sufficient for small (~25 km)
-    coverage cells near the equator.
-    """
-    points: List[float] = []
+def _hexagon_vertices(center_lat: float, center_lon: float,
+                      radius_km: float = 25.0) -> List[float]:
+    """Generate 6 vertices for a hexagonal cell (lon, lat, height) degrees."""
+    coords: List[float] = []
     if _HAS_PYPROJ:
         geod = Geod(ellps="WGS84")
-        for i in range(n):
-            azimuth = 360.0 * i / n
-            lon, lat, _ = geod.fwd(lon_deg, lat_deg, azimuth, radius_km * 1000)
-            points.extend([lon, lat, 0.0])
+        for angle in range(0, 360, 60):
+            lon, lat, _ = geod.fwd(center_lon, center_lat, angle, radius_km * 1000)
+            coords.extend([float(lon), float(lat), 0.0])
     else:
-        dlat = radius_km / 111320.0
-        dlon = radius_km / (111320.0 * np.cos(np.radians(lat_deg)))
-        for i in range(n):
-            a = 2 * np.pi * i / n
-            clat = lat_deg + dlat * np.cos(a)
-            clon = lon_deg + dlon * np.sin(a)
-            points.extend([clon, clat, 0.0])
-    return points
+        dlat = radius_km / 111.32
+        dlon = radius_km / (111.32 * np.cos(np.radians(center_lat)))
+        for angle in range(0, 360, 60):
+            rad = np.radians(angle)
+            clat = center_lat + dlat * np.cos(rad)
+            clon = center_lon + dlon * np.sin(rad)
+            coords.extend([float(clon), float(clat), 0.0])
+    return coords
+
+
+def _overlapping_rhombus_vertices(gs_lat: float, gs_lon: float,
+                                  sat_lat: float, sat_lon: float,
+                                  radius_km: float = 25.0) -> List[float]:
+    """Calculate the 4 vertices of the overlapping rhombus between GS cell and Sat beam cell."""
+    if _HAS_PYPROJ:
+        geod = Geod(ellps="WGS84")
+        mid_lat = (gs_lat + sat_lat) / 2.0
+        mid_lon = (gs_lon + sat_lon) / 2.0
+        fwd_az, _, _ = geod.inv(gs_lon, gs_lat, sat_lon, sat_lat)
+        
+        m1_lon, m1_lat, _ = geod.fwd(mid_lon, mid_lat, fwd_az + 90, radius_km * 500)
+        m2_lon, m2_lat, _ = geod.fwd(mid_lon, mid_lat, fwd_az - 90, radius_km * 500)
+        
+        return [
+            float(gs_lon), float(gs_lat), 0.0,
+            float(m1_lon), float(m1_lat), 0.0,
+            float(sat_lon), float(sat_lat), 0.0,
+            float(m2_lon), float(m2_lat), 0.0,
+        ]
+    else:
+        mid_lat = (gs_lat + sat_lat) / 2.0
+        mid_lon = (gs_lon + sat_lon) / 2.0
+        dlat = (sat_lat - gs_lat) * 0.4
+        dlon = (sat_lon - gs_lon) * 0.4
+        return [
+            float(gs_lon), float(gs_lat), 0.0,
+            float(mid_lon + dlon), float(mid_lat - dlat), 0.0,
+            float(sat_lon), float(sat_lat), 0.0,
+            float(mid_lon - dlon), float(mid_lat + dlat), 0.0,
+        ]
 
 
 def _to_float(val: Any) -> float:
@@ -206,6 +231,7 @@ class CZMLWriter:
                 channel_groups.get(sat_id, None),
             ))
             entities.append(self._coverage_polygon_entity(sat_id, group, epoch_dt))
+            entities.append(self._overlap_rhombus_entity(sat_id, group))
 
         return entities
 
@@ -346,22 +372,50 @@ class CZMLWriter:
 
     def _coverage_polygon_entity(self, sat_id: Any, group: pd.DataFrame,
                                  epoch_dt: datetime) -> Dict:
-        """Build a coverage polygon for a satellite sub-point."""
+        """Build a hexagonal beam footprint coverage polygon for a satellite sub-point."""
         radius_km = self.cfg.cell_radius_km
         first_pos_km = group['Sat Position (km)'].iloc[0]
         pos_m = _ecef_km_to_m(first_pos_km)
         lat, lon = _sub_satellite_latlon(pos_m[0], pos_m[1], pos_m[2])
-        circle = _coverage_circle(lat, lon, radius_km, self.circle_points)
+        hexagon = _hexagon_vertices(lat, lon, radius_km)
 
         return {
             "id": f"coverage_sat_{_sanitize_id(sat_id)}",
-            "name": f"Satellite {sat_id} Coverage",
-            "description": f"Coverage area (radius: {radius_km} km) for satellite {sat_id}",
+            "name": f"Satellite {sat_id} Hexagonal Beam Footprint",
+            "description": f"Hexagonal beam footprint (radius: {radius_km} km) for satellite {sat_id}",
             "polygon": {
                 "positions": {
-                    "cartographicDegrees": circle,
+                    "cartographicDegrees": hexagon,
                 },
-                "material": {"solidColor": {"color": _rgba(255, 255, 0, 100)}},
+                "material": {"solidColor": {"color": _rgba(0, 220, 255, 80)}},
+                "outline": True,
+                "outlineColor": _rgba(0, 220, 255, 220),
+                "perPositionHeight": True,
+                "closeTop": True,
+                "closeBottom": False,
+            },
+        }
+
+    def _overlap_rhombus_entity(self, sat_id: Any, group: pd.DataFrame) -> Dict:
+        """Build an overlapping rhombus polygon highlighting intersection between GS and satellite beam."""
+        cfg = self.cfg
+        radius_km = cfg.cell_radius_km
+        first_pos_km = group['Sat Position (km)'].iloc[0]
+        pos_m = _ecef_km_to_m(first_pos_km)
+        sat_lat, sat_lon = _sub_satellite_latlon(pos_m[0], pos_m[1], pos_m[2])
+        rhombus = _overlapping_rhombus_vertices(cfg.gs_lat, cfg.gs_lon, sat_lat, sat_lon, radius_km)
+
+        return {
+            "id": f"overlap_rhombus_{_sanitize_id(sat_id)}",
+            "name": f"Overlap Rhombus (Sat {sat_id} / GS)",
+            "description": f"Overlapping rhombus area between Ground Station cell and Satellite {sat_id} beam footprint",
+            "polygon": {
+                "positions": {
+                    "cartographicDegrees": rhombus,
+                },
+                "material": {"solidColor": {"color": _rgba(50, 205, 50, 140)}},
+                "outline": True,
+                "outlineColor": _rgba(50, 255, 50, 255),
                 "perPositionHeight": True,
                 "closeTop": True,
                 "closeBottom": False,
