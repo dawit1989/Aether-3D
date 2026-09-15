@@ -24,6 +24,8 @@
     "aether3d"
   ],
   "dependencies": {
+    "@fluentui/react-components": "^9.74.7",
+    "@fluentui/react-icons": "^2.0.341",
     "cesium": "^1.145.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

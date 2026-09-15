@@ -1,4 +1,15 @@
 import React, { useState, useCallback } from 'react';
+import {
+  Card,
+  Button,
+  Text,
+  Spinner,
+} from '@fluentui/react-components';
+import {
+  Folder24Regular,
+  ArrowUpload24Regular,
+  Play24Regular,
+} from '@fluentui/react-icons';
 import { validateCzml } from '@utils/czmlUtils.js';
 import './FileUploader.css';
 
@@ -81,31 +92,39 @@ export default function FileUploader({ onCzmlLoad }) {
   }, [processCzmlText]);
 
   return (
-    <div className="file-uploader-section">
-      <h3 className="section-title">Data Source</h3>
+    <Card className="file-uploader-section">
+      <Text weight="semibold" size={300} className="section-title">
+        Data Source
+      </Text>
       <div
         className={`drop-zone ${isDragging ? 'dragging' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <span className="drop-icon">📁</span>
-        <p className="drop-text">Drag & drop CZML dataset here</p>
+        <Folder24Regular className="drop-icon" />
+        <Text size={200} className="drop-text">
+          Drag & drop CZML dataset here
+        </Text>
         <label className="file-select-btn">
-          Browse File
+          <Button icon={<ArrowUpload24Regular />} appearance="outline" size="small">
+            Browse File
+          </Button>
           <input type="file" accept=".czml,.json" onChange={handleFileChange} />
         </label>
       </div>
 
-      <button
-        className="sample-btn"
+      <Button
+        appearance="primary"
+        icon={isLoadingSample ? <Spinner size="tiny" /> : <Play24Regular />}
         onClick={handleLoadSample}
         disabled={isLoadingSample}
+        className="sample-btn"
       >
-        {isLoadingSample ? 'Loading Demo…' : '🚀 Load Sample Data'}
-      </button>
+        {isLoadingSample ? 'Loading Demo…' : 'Load Sample Data'}
+      </Button>
 
       {errorMessage && <div className="uploader-error">⚠ {errorMessage}</div>}
-    </div>
+    </Card>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, Suspense, lazy } from 'react';
+import { FluentProvider, webDarkTheme } from '@fluentui/react-components';
 import FileUploader from '@components/FileUploader.jsx';
 import ControlPanel from '@components/ControlPanel.jsx';
 import MetricsDashboard from '@components/MetricsDashboard.jsx';
@@ -41,8 +42,8 @@ export default function App() {
   }, []);
 
   return (
-    <ApiProvider endpoint={apiEndpoint}>
-      <div className={`app ${dashboardCollapsed ? 'dashboard-collapsed' : ''}`}>
+    <FluentProvider theme={webDarkTheme} className={`app ${dashboardCollapsed ? 'dashboard-collapsed' : ''}`}>
+      <ApiProvider endpoint={apiEndpoint}>
         <StatusBar
           fileName={czmlFileName}
           apiEndpoint={apiEndpoint}
@@ -101,7 +102,7 @@ export default function App() {
           collapsed={dashboardCollapsed}
           onToggleCollapse={() => setDashboardCollapsed((prev) => !prev)}
         />
-      </div>
-    </ApiProvider>
+      </ApiProvider>
+    </FluentProvider>
   );
 }

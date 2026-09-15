@@ -1,4 +1,10 @@
 import React from 'react';
+import {
+  Switch,
+  Divider,
+  Text,
+  Select,
+} from '@fluentui/react-components';
 import './ControlPanel.css';
 
 export default function ControlPanel({
@@ -17,71 +23,62 @@ export default function ControlPanel({
 }) {
   return (
     <div className="control-panel">
-      <h3 className="section-title">Layer Visibility</h3>
+      <Text weight="semibold" size={300} className="section-title">
+        Layer Visibility
+      </Text>
       <div className="toggle-group">
-        <label className="toggle-item">
-          <input
-            type="checkbox"
-            checked={showSatellites}
-            onChange={(e) => onShowSatellitesChange(e.target.checked)}
-          />
-          <span className="toggle-label">Satellites & HAPS</span>
-        </label>
-
-        <label className="toggle-item">
-          <input
-            type="checkbox"
-            checked={showCoverage}
-            onChange={(e) => onShowCoverageChange(e.target.checked)}
-          />
-          <span className="toggle-label">Coverage Cells</span>
-        </label>
-
-        <label className="toggle-item">
-          <input
-            type="checkbox"
-            checked={showGroundStations}
-            onChange={(e) => onShowGroundStationsChange(e.target.checked)}
-          />
-          <span className="toggle-label">Ground / Base Stations</span>
-        </label>
-
-        <label className="toggle-item">
-          <input
-            type="checkbox"
-            checked={showOrbits}
-            onChange={(e) => onShowOrbitsChange(e.target.checked)}
-          />
-          <span className="toggle-label">Orbital Paths</span>
-        </label>
+        <Switch
+          checked={showSatellites}
+          onChange={(e, data) => onShowSatellitesChange(data.checked)}
+          label="Satellites & HAPS"
+        />
+        <Switch
+          checked={showCoverage}
+          onChange={(e, data) => onShowCoverageChange(data.checked)}
+          label="Coverage Cells"
+        />
+        <Switch
+          checked={showGroundStations}
+          onChange={(e, data) => onShowGroundStationsChange(data.checked)}
+          label="Ground / Base Stations"
+        />
+        <Switch
+          checked={showOrbits}
+          onChange={(e, data) => onShowOrbitsChange(data.checked)}
+          label="Orbital Paths"
+        />
       </div>
 
-      <h3 className="section-title margin-top">Environment</h3>
+      <Divider className="panel-divider" />
+
+      <Text weight="semibold" size={300} className="section-title">
+        Environment
+      </Text>
       <div className="select-group">
         <div className="select-item">
           <label htmlFor="base-map-select">Base Map:</label>
-          <select
+          <Select
             id="base-map-select"
             value={baseMap}
-            onChange={(e) => onBaseMapChange(e.target.value)}
+            onChange={(e, data) => onBaseMapChange(data.value)}
           >
             <option value="osm">OpenStreetMap</option>
             <option value="cartodb">CartoDB Positron</option>
             <option value="arcgis">ArcGIS World Imagery</option>
             <option value="none">Bare Globe (None)</option>
-          </select>
+          </Select>
         </div>
 
         <div className="select-item">
           <label htmlFor="terrain-select">Terrain Model:</label>
-          <select
+          <Select
             id="terrain-select"
             value={terrainMode}
-            onChange={(e) => onTerrainModeChange(e.target.value)}
+            onChange={(e, data) => onTerrainModeChange(data.value)}
           >
             <option value="ellipsoid">WGS84 Ellipsoid (Flat)</option>
             <option value="srtm">Cesium World Terrain</option>
-          </select>
+          </Select>
         </div>
       </div>
     </div>

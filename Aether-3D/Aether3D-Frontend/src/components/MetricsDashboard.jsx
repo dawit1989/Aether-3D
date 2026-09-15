@@ -1,4 +1,14 @@
 import React, { useMemo } from 'react';
+import {
+  Card,
+  Badge,
+  Text,
+  Button,
+} from '@fluentui/react-components';
+import {
+  ChevronDown24Regular,
+  ChevronRight24Regular,
+} from '@fluentui/react-icons';
 import { EntityType, getEntitiesByType, extractEntityMetrics } from '@utils/czmlUtils.js';
 import './MetricsDashboard.css';
 
@@ -11,7 +21,7 @@ function MetricHistogram({ values, metricName }) {
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
 
     if (min === max) {
-      return { min, max, mean, binCounts: [values.length], binRanges: [`${min.toFixed(1)}`] };
+      return { min, max, mean, binCounts: [values.length] };
     }
 
     const range = max - min;
@@ -28,7 +38,7 @@ function MetricHistogram({ values, metricName }) {
   }, [values]);
 
   if (!stats) {
-    return <div className="no-histogram">No numerical data for histogram</div>;
+    return <Text size={200} className="no-histogram">No numerical data for histogram</Text>;
   }
 
   const maxCount = Math.max(...stats.binCounts, 1);
@@ -39,10 +49,10 @@ function MetricHistogram({ values, metricName }) {
   return (
     <div className="histogram-container">
       <div className="histogram-header">
-        <span className="histogram-title">{metricName} Distribution</span>
-        <span className="histogram-stats">
+        <Text weight="semibold" size={200} className="histogram-title">{metricName} Distribution</Text>
+        <Text size={100} className="histogram-stats">
           Mean: {stats.mean.toFixed(1)} | Min: {stats.min.toFixed(1)} | Max: {stats.max.toFixed(1)}
-        </span>
+        </Text>
       </div>
 
       <svg width={svgWidth} height={svgHeight} className="histogram-svg">
@@ -99,80 +109,84 @@ export default function MetricsDashboard({
     <div className={`metrics-dashboard ${collapsed ? 'collapsed' : ''}`}>
       <div className="dashboard-header" onClick={onToggleCollapse}>
         <div className="header-left">
-          <span className={`chevron ${collapsed ? 'collapsed' : ''}`}>▼</span>
-          <span className="dashboard-title">
+          <Button
+            appearance="subtle"
+            size="small"
+            icon={collapsed ? <ChevronRight24Regular /> : <ChevronDown24Regular />}
+          />
+          <Text weight="semibold" size={300} className="dashboard-title">
             {selectedEntity ? `Inspection: ${selectedEntity.name || selectedEntity.id}` : 'System Metrics & Analytics'}
-          </span>
+          </Text>
         </div>
         <div className="header-right">
           {summary && (
-            <span className="summary-pill">
-              {summary.total} Entities ({summary.satellites} Sats, {summary.groundStations} GS, {summary.haps} HAPS)
-            </span>
+            <Badge appearance="tint" color="brand">
+              {summary.total} Entities ({summary.satellites} Sats, {summary.groundStations} GS)
+            </Badge>
           )}
         </div>
       </div>
 
       {!collapsed && (
         <div className="dashboard-content">
-          <div className="metrics-pane">
-            <h4 className="pane-title">Selected Entity Metrics</h4>
+          <Card className="metrics-pane">
+            <Text weight="semibold" size={200} className="pane-title">Selected Entity Metrics</Text>
             {selectedEntity ? (
               <div className="entity-details">
                 <div className="detail-row">
-                  <span className="detail-key">ID / Name:</span>
-                  <span className="detail-val">{selectedEntity.name || selectedEntity.id}</span>
+                  <Text size={200} className="detail-key">ID / Name:</Text>
+                  <Text weight="semibold" size={200} className="detail-val">{selectedEntity.name || selectedEntity.id}</Text>
                 </div>
                 <div className="detail-row">
-                  <span className="detail-key">Category:</span>
-                  <span className="detail-val category-tag">{selectedEntity.type}</span>
+                  <Text size={200} className="detail-key">Category:</Text>
+                  <Badge appearance="tint" color="informative">{selectedEntity.type}</Badge>
                 </div>
                 {Object.entries(selectedEntity.metrics || {}).map(([k, v]) => (
                   <div key={k} className="detail-row">
-                    <span className="detail-key">{k}:</span>
-                    <span className="detail-val highlight">
+                    <Text size={200} className="detail-key">{k}:</Text>
+                    <Text weight="semibold" size={200} className="detail-val highlight">
                       {typeof v === 'number' ? v.toFixed(2) : String(v)}
-                    </span>
+                    </Text>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="no-selection">
+              <Text size={200} className="no-selection">
                 Click any satellite, HAPS, or ground station on the 3D globe to inspect live channel metrics.
-              </div>
+              </Text>
             )}
-          </div>
+          </Card>
 
-          <div className="metrics-pane">
-            <h4 className="pane-title">RF Channel Distribution</h4>
+          <Card className="metrics-pane">
+            <Text weight="semibold" size={200} className="pane-title">RF Channel Distribution</Text>
             <MetricHistogram values={sinrValues} metricName="SINR (dB)" />
-          </div>
+          </Card>
 
-          <div className="metrics-pane">
-            <h4 className="pane-title">Topology Breakdown</h4>
+          <Card className="metrics-pane">
+            <Text weight="semibold" size={200} className="pane-title">Topology Breakdown</Text>
             {summary ? (
               <div className="breakdown-grid">
                 <div className="breakdown-card">
-                  <span className="card-num">{summary.satellites}</span>
-                  <span className="card-label">Satellites</span>
+                  <Text weight="bold" size={600} className="card-num">{summary.satellites}</Text>
+                  <Text size={100} className="card-label">Satellites</Text>
                 </div>
                 <div className="breakdown-card">
-                  <span className="card-num">{summary.groundStations}</span>
-                  <span className="card-label">Ground Stations</span>
+                  <Text weight="bold" size={600} className="card-num">{summary.groundStations}</Text>
+                  <Text size={100} className="card-label">Ground Stations</Text>
                 </div>
                 <div className="breakdown-card">
-                  <span className="card-num">{summary.haps}</span>
-                  <span className="card-label">HAPS</span>
+                  <Text weight="bold" size={600} className="card-num">{summary.haps}</Text>
+                  <Text size={100} className="card-label">HAPS</Text>
                 </div>
                 <div className="breakdown-card">
-                  <span className="card-num">{summary.coverage}</span>
-                  <span className="card-label">Coverage Cells</span>
+                  <Text weight="bold" size={600} className="card-num">{summary.coverage}</Text>
+                  <Text size={100} className="card-label">Coverage Cells</Text>
                 </div>
               </div>
             ) : (
-              <div className="no-selection">No dataset loaded</div>
+              <Text size={200} className="no-selection">No dataset loaded</Text>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
+import { Button } from '@fluentui/react-components';
+import { Play24Filled, Pause24Filled } from '@fluentui/react-icons';
 import { classifyEntity, EntityType, extractEntityMetrics } from '@utils/czmlUtils.js';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './CesiumGlobe.css';
@@ -272,13 +274,13 @@ export default function CesiumGlobe({
         </div>
       )}
       <div className="cesium-overlay">
-        <button
-          className={`play-btn ${isPlaying ? 'playing' : ''}`}
+        <Button
+          circular
+          appearance="primary"
+          icon={isPlaying ? <Pause24Filled /> : <Play24Filled />}
           onClick={togglePlayback}
           title={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? '❚❚' : '▶'}
-        </button>
+        />
       </div>
     </>
   );
