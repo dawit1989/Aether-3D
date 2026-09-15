@@ -1,35 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { classifyEntity, EntityType, extractEntityMetrics } from '@utils/czmlUtils.js';
-import 'cesium/Source/Widgets/widgets.css';
+import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './CesiumGlobe.css';
+import './CesiumDarkTheme.css';
 
-// No Cesium ion tokens required — we use OpenStreetMap imagery.
 Cesium.Ion.defaultAccessToken = '';
 
-/**
- * CesiumGlobe — the core 3D visualization component.
- *
- * Renders a CesiumJS Viewer inside a React-managed div and exposes
- * a clean API for:
- *
- *   - Loading CZML data (from file or API).
- *   - Toggling entity categories (satellites, coverage, ground stations, orbits).
- *   - Handling entity picking for the metrics dashboard.
- *   - Driving the timeline clock from CZML time-dynamic data.
- *
- * @param {Object} props
- * @param {Array|null} props.czmlData - Parsed CZML array (or null).
- * @param {boolean} props.showSatellites
- * @param {boolean} props.showCoverage
- * @param {boolean} props.showGroundStations
- * @param {boolean} props.showOrbits
- * @param {Function} props.onEntitySelect - Callback when an entity is clicked.
- * @param {Date|null} props.currentTime
- * @param {Function} props.onCurrentTimeChange
- * @param {boolean} props.isPlaying
- * @param {Function} props.onIsPlayingChange
- */
 export default function CesiumGlobe({
   czmlData,
   showSatellites = true,
@@ -37,63 +14,46 @@ export default function CesiumGlobe({
   showGroundStations = true,
   showOrbits = false,
   onEntitySelect,
-  currentTime,
-  onCurrentTimeChange,
   isPlaying,
   onIsPlayingChange,
+  terrainMode = 'ellipsoid',
+  baseMap = 'osm',
 }) {
   const cesiumContainerRef = useRef(null);
   const viewerRef = useRef(null);
   const czmlDataSourceRef = useRef(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const tooltipRef = useRef(null);
   const [loadError, setLoadError] = useState(null);
 
-  // Track which props have changed since last effect.
-  const visibilityFlagsRef = useRef({
-    showSatellites,
-    showCoverage,
-    showGroundStations,
-    showOrbits,
-  });
-  visibilityFlagsRef.current = {
-    showSatellites,
-    showCoverage,
-    showGroundStations,
-    showOrbits,
-  };
-
-  // ------------------------------------------------------------------
-  // Initialise Cesium Viewer (once).
-  // ------------------------------------------------------------------
+  // Initialise Cesium Viewer once
   useEffect(() => {
-    if (!cesiumContainerRef.current || isInitialized) return;
+    if (!cesiumContainerRef.current || viewerRef.current) return;
 
     try {
       const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
+        baseLayer: new Cesium.ImageryLayer(
+          new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://tile.openstreetmap.org/',
+          })
+        ),
         baseLayerPicker: false,
         timeline: true,
         animation: true,
         fullscreenButton: true,
-        scene3DModePicker: true,
-        selectionModePicker: false,
+        sceneModePicker: true,
         infoBox: false,
         selectionIndicator: false,
         navigationHelpButton: false,
         navigationInstructionsInitiallyVisible: false,
-        requestWebGl2: true,
+        requestWebgl2: true,
       });
 
-      // Use OpenStreetMap imagery (no token needed).
-      viewer.imageryLayers.removeAll();
       viewer.scene.globe.enableLighting = true;
 
-      // Entity click handler for picking.
+      // Entity click picker
       viewer.screenSpaceEventHandler.setInputAction((movement) => {
         const picked = viewer.scene.pick(movement.position);
-        if (
-          picked &&
-          picked.id
-        ) {
+        if (picked && picked.id) {
           const entity = picked.id;
           const metrics = entity.properties
             ? extractEntityMetrics(entity.properties)
@@ -107,22 +67,61 @@ export default function CesiumGlobe({
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      // Hover tooltip handler
+      viewer.screenSpaceEventHandler.setInputAction((movement) => {
+        const tooltip = tooltipRef.current;
+        if (!tooltip) return;
+
+        const picked = viewer.scene.pick(movement.endPosition);
+        if (picked && picked.id && picked.id.id) {
+          const entity = picked.id;
+          const entityType = classifyEntity(entity.id);
+          const metrics = entity.properties
+            ? extractEntityMetrics(entity.properties)
+            : {};
+
+          let html = `<div class="tooltip-name">${entity.name || entity.id}</div>`;
+          html += `<div class="tooltip-type">${entityType}</div>`;
+
+          const metricKeys = ['SINR (dB)', 'SNR (dB)', 'Distance (km)', 'meanPRx'];
+          let shown = 0;
+          for (const key of metricKeys) {
+            if (shown >= 3) break;
+            const val = metrics[key];
+            if (val !== undefined && typeof val === 'number') {
+              const unit = key.includes('dB') ? 'dB' : key.includes('km') ? 'km' : 'dBW';
+              html += `<div class="tooltip-metric"><span class="tooltip-metric-label">${key}:</span><span class="tooltip-metric-value">${val.toFixed(1)} ${unit}</span></div>`;
+              shown++;
+            }
+          }
+
+          tooltip.innerHTML = html;
+          tooltip.style.display = 'block';
+          tooltip.style.left = `${movement.endPosition.x + 16}px`;
+          tooltip.style.top = `${movement.endPosition.y - 8}px`;
+        } else {
+          tooltip.style.display = 'none';
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
       viewerRef.current = viewer;
-      setIsInitialized(true);
       setLoadError(null);
     } catch (err) {
       console.error('Failed to initialise Cesium:', err);
       setLoadError(err.message);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
 
-  // ------------------------------------------------------------------
-  // Apply visibility toggles to loaded entities.
-  // ------------------------------------------------------------------
-  const applyEntityVisibility = useCallback(() => {
+    return () => {
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        viewerRef.current.destroy();
+      }
+      viewerRef.current = null;
+    };
+  }, [onEntitySelect]);
+
+  // Apply visibility toggles to loaded entities
+  useEffect(() => {
     if (!czmlDataSourceRef.current) return;
-    const flags = visibilityFlagsRef.current;
     const entities = czmlDataSourceRef.current.entities.values;
 
     entities.forEach((entity) => {
@@ -131,79 +130,128 @@ export default function CesiumGlobe({
 
       switch (type) {
         case EntityType.SATELLITE:
-          visible = flags.showSatellites;
-          break;
         case EntityType.HAPS:
-          visible = flags.showSatellites;
+          visible = showSatellites;
           break;
         case EntityType.COVERAGE:
-          visible = flags.showCoverage;
+          visible = showCoverage;
           break;
         case EntityType.GROUND_STATION:
-          visible = flags.showGroundStations;
-          break;
         case EntityType.BASE_STATION:
-          visible = flags.showGroundStations;
+          visible = showGroundStations;
           break;
         default:
-          visible = true;
+          break;
       }
 
       entity.show = visible;
+
+      if (entity.path) {
+        entity.path.show = showOrbits;
+      }
     });
-  }, []);
 
-  // ------------------------------------------------------------------
-  // Load / update CZML data when czmlData changes.
-  // ------------------------------------------------------------------
-  const loadCzml = useCallback(async () => {
-    if (!viewerRef.current || !czmlData || !Array.isArray(czmlData)) return;
+    viewerRef.current?.scene?.requestRender();
+  }, [showSatellites, showCoverage, showGroundStations, showOrbits]);
+
+  // Load CZML data into scene
+  useEffect(() => {
     const viewer = viewerRef.current;
+    if (!viewer) return;
 
-    // Remove existing data source.
     if (czmlDataSourceRef.current) {
       viewer.dataSources.remove(czmlDataSourceRef.current, true);
+      czmlDataSourceRef.current = null;
     }
-    czmlDataSourceRef.current = null;
 
-    try {
-      const dataSource = await Cesium.CzmlDataSource.load(czmlData);
-      czmlDataSourceRef.current = dataSource;
-      viewer.dataSources.add(dataSource);
-      viewer.flyTo(dataSource);
+    if (!czmlData) return;
 
-      // Sync the timeline if the CZML has a clock.
-      if (dataSource.clock) {
-        viewer.clock = dataSource.clock;
-        viewer.clock.shouldAnimate = isPlaying;
-      }
+    Cesium.CzmlDataSource.load(czmlData)
+      .then((ds) => {
+        czmlDataSourceRef.current = ds;
+        return viewer.dataSources.add(ds);
+      })
+      .then(() => {
+        viewer.zoomTo(czmlDataSourceRef.current);
+      })
+      .catch((err) => {
+        console.error('Failed to load CZML:', err);
+        setLoadError(err.message);
+      });
+  }, [czmlData]);
 
-      // Apply initial visibility.
-      applyEntityVisibility();
+  // Terrain model provider switching
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
 
-      setLoadError(null);
-    } catch (err) {
-      console.error('Failed to load CZML:', err);
-      setLoadError(err.message);
+    if (terrainMode === 'srtm') {
+      Cesium.CesiumTerrainProvider.fromUrl(
+        'https://assets.ion.cesium.com/1',
+        { requestVertexNormals: true }
+      )
+        .then((provider) => {
+          if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+            viewerRef.current.terrainProvider = provider;
+          }
+        })
+        .catch(() => {
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        });
+    } else {
+      viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
     }
-  }, [czmlData, isPlaying, applyEntityVisibility]);
+  }, [terrainMode]);
 
-  // Load CZML when data changes.
+  // Base map provider switching
   useEffect(() => {
-    loadCzml();
-  }, [loadCzml]);
+    const viewer = viewerRef.current;
+    if (!viewer) return;
 
-  // Re-apply visibility when toggles change.
-  useEffect(() => {
-    applyEntityVisibility();
-  }, [applyEntityVisibility]);
+    viewer.imageryLayers.removeAll();
 
-  // Sync timeline playback state.
+    switch (baseMap) {
+      case 'osm':
+        viewer.imageryLayers.addImageryProvider(
+          new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://tile.openstreetmap.org/',
+          })
+        );
+        break;
+      case 'cartodb':
+        viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          })
+        );
+        break;
+      case 'arcgis':
+        Cesium.ArcGisMapServerImageryProvider.fromUrl(
+          'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+        )
+          .then((provider) => {
+            if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+              viewerRef.current.imageryLayers.addImageryProvider(provider);
+            }
+          })
+          .catch(() => {
+            viewer.imageryLayers.addImageryProvider(
+              new Cesium.OpenStreetMapImageryProvider({
+                url: 'https://tile.openstreetmap.org/',
+              })
+            );
+          });
+        break;
+      case 'none':
+        break;
+      default:
+        break;
+    }
+  }, [baseMap]);
+
+  // Sync animation clock
   useEffect(() => {
     if (!viewerRef.current) return;
-    if (czmlDataSourceRef.current && czmlDataSourceRef.current.clock) {
-      viewerRef.current.clock = czmlDataSourceRef.current.clock;
-    }
     viewerRef.current.clock.shouldAnimate = isPlaying;
   }, [isPlaying]);
 
@@ -217,6 +265,7 @@ export default function CesiumGlobe({
   return (
     <>
       <div ref={cesiumContainerRef} id="cesiumContainer" />
+      <div ref={tooltipRef} className="cesium-hover-tooltip" style={{ display: 'none' }} />
       {loadError && (
         <div className="cesium-error-overlay">
           <span>⚠ Cesium error: {loadError}</span>

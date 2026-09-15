@@ -1,42 +1,25 @@
-/* Aether3D-Frontend — App-level layout */
-
 .app {
   display: flex;
   flex-direction: column;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-}
-
-.status-bar {
-  flex: 0 0 auto;
-  height: 40px;
-  min-height: 40px;
-  background: rgba(15, 15, 24, 0.92);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  font-size: 13px;
-  color: #a0a0b0;
-  z-index: 100;
+  background: #0b0b14;
 }
 
 .main-area {
   display: flex;
   flex: 1;
   overflow: hidden;
-  height: calc(100vh - 40px - 260px);
+  min-height: 0;
 }
 
 .sidebar {
   flex: 0 0 320px;
-  max-width: 320px;
-  min-width: 280px;
   width: 320px;
   display: flex;
   flex-direction: column;
-  background: rgba(20, 20, 32, 0.92);
+  background: rgba(20, 20, 32, 0.95);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   z-index: 10;
@@ -48,40 +31,28 @@
   overflow: hidden;
 }
 
-.metrics-dashboard {
-  flex: 0 0 auto;
-  height: 260px;
-  min-height: 260px;
-  max-height: 260px;
-  background: rgba(15, 15, 24, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.globe-loading {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: #808095;
+  font-size: 14px;
 }
 
-/* Responsive: collapse sidebar on small screens */
-@media (max-width: 1024px) {
-  .main-area {
-    flex-direction: column;
-  }
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 220, 255, 0.15);
+  border-top-color: rgba(0, 220, 255, 0.8);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
 
-  .sidebar {
-    flex: 0 0 auto;
-    max-width: 100%;
-    min-width: 100%;
-    width: 100%;
-    height: 300px;
-    max-height: 300px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    row-gap: 12px;
-    padding: 12px;
-  }
-
-  .globe-container {
-    flex: 1;
-    height: calc(100vh - 40px - 260px - 300px);
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
   }
 }

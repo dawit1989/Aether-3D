@@ -1,8 +1,23 @@
-node_modules/
-dist/
-.env.local
-.env
+# Logs
+logs
 *.log
-.DS_Store
+npm-debug.log*
+
+# Node modules
+node_modules/
+
+# Production build
+dist/
+
+# Local env
+.env.local
+.env.*.local
+
+# IDE
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,42 +1,37 @@
 import React from 'react';
+import { useApi, ApiStatus } from '@hooks/useApi.jsx';
 import './StatusBar.css';
 
-/**
- * StatusBar — top bar showing the app title, loaded file name,
- * and an API endpoint input.
- *
- * @param {Object} props
- * @param {string} props.fileName - Currently loaded CZML file name.
- * @param {string} props.apiEndpoint - Current API base URL.
- * @param {Function} props.onApiEndpointChange - (url) => void
- */
 export default function StatusBar({ fileName, apiEndpoint, onApiEndpointChange }) {
+  const { status } = useApi();
+
   return (
-    <div className="status-bar-container">
-      <div className="app-title">
-        <span className="logo">🛰️</span>
-        <span className="app-name">Aether3D-Frontend</span>
-        <span className="app-tagline">Aether-3D Satellite Simulator</span>
+    <header className="status-bar">
+      <div className="status-left">
+        <span className="app-title">Aether-3D Viz</span>
+        <span className="status-divider">|</span>
+        <span className="file-info">
+          {fileName ? `File: ${fileName}` : 'No dataset loaded'}
+        </span>
       </div>
 
-      {fileName && (
-        <div className="file-info">
-          <span className="file-icon">📄</span>
-          <span className="file-name">{fileName}</span>
+      <div className="status-right">
+        <div className="api-config">
+          <label htmlFor="api-url">Backend API:</label>
+          <input
+            id="api-url"
+            type="text"
+            value={apiEndpoint}
+            onChange={(e) => onApiEndpointChange?.(e.target.value)}
+            placeholder="http://localhost:8000"
+          />
+          <span className={`status-badge ${status}`}>
+            {status === ApiStatus.CONNECTED && '● Online'}
+            {status === ApiStatus.DISCONNECTED && '○ Offline'}
+            {status === ApiStatus.CHECKING && '◌ Checking'}
+          </span>
         </div>
-      )}
-
-      <div className="api-input">
-        <label className="api-label">API:</label>
-        <input
-          type="url"
-          className="api-endpoint-input"
-          value={apiEndpoint}
-          onChange={(e) => onApiEndpointChange(e.target.value)}
-          placeholder="http://localhost:8000"
-          title="Aether-3D API base URL for fetching live simulation data"
-        />
       </div>
-    </div>
+    </header>
   );
 }

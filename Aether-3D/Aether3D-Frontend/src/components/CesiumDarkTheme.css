@@ -1,0 +1,78 @@
+/* Dark Theme Overrides for CesiumJS Widgets */
+
+.cesium-viewer {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.cesium-viewer-bottom {
+  display: none !important; /* Hide Ion credit banner */
+}
+
+.cesium-timeline-main,
+.cesium-animation-theme {
+  background: rgba(15, 15, 24, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #c0c0d0 !important;
+}
+
+.cesium-navigation-help,
+.cesium-sceneModePicker-wrapper,
+.cesium-fullscreenButton {
+  background: rgba(15, 15, 24, 0.85) !important;
+  border-radius: 6px;
+}
+
+.cesium-button {
+  background: rgba(255, 255, 255, 0.08) !important;
+  fill: #e0e0f0 !important;
+  border-radius: 4px;
+}
+
+.cesium-button:hover {
+  background: rgba(0, 220, 255, 0.2) !important;
+  fill: #00dcff !important;
+}
+
+/* Hover Tooltip Overlay */
+.cesium-hover-tooltip {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+  background: rgba(15, 15, 24, 0.92);
+  border: 1px solid rgba(0, 220, 255, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.tooltip-name {
+  font-weight: 700;
+  color: #00dcff;
+}
+
+.tooltip-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #808095;
+  margin-bottom: 4px;
+}
+
+.tooltip-metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.tooltip-metric-label {
+  color: #a0a0b0;
+}
+
+.tooltip-metric-value {
+  color: #32cd32;
+  font-weight: 600;
+}

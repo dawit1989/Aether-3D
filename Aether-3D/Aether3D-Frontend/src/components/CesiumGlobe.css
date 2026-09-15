@@ -1,5 +1,3 @@
-/* CesiumGlobe component styles */
-
 #cesiumContainer {
   width: 100%;
   height: 100%;
@@ -17,7 +15,6 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .cesium-overlay {
@@ -26,8 +23,6 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  display: flex;
-  gap: 8px;
 }
 
 .play-btn {
@@ -48,7 +43,7 @@
 
 .play-btn:hover {
   background: #fff;
-  transform: translateX(-50%) scale(1.1);
+  transform: scale(1.1);
 }
 
 .play-btn.playing {

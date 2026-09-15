@@ -1,0 +1,229 @@
+[
+  {
+    "id": "document",
+    "name": "Aether-3D Multi-Orbit Sample Scenario",
+    "version": "1.0",
+    "clock": {
+      "interval": "2026-09-15T00:00:00Z/2026-09-15T01:00:00Z",
+      "currentTime": "2026-09-15T00:00:00Z",
+      "multiplier": 60,
+      "range": "LOOP_STOP",
+      "step": "SYSTEM_CLOCK_MULTIPLIED"
+    }
+  },
+  {
+    "id": "Sat_0",
+    "name": "LEO Satellite 1 (Sat_0)",
+    "availability": "2026-09-15T00:00:00Z/2026-09-15T01:00:00Z",
+    "position": {
+      "referenceFrame": "FIXED",
+      "cartographicDegrees": [
+        "2026-09-15T00:00:00Z", -74.0, 40.7, 600000.0,
+        "2026-09-15T00:30:00Z", 0.0, 45.0, 600000.0,
+        "2026-09-15T01:00:00Z", 74.0, 40.7, 600000.0
+      ]
+    },
+    "point": {
+      "color": { "rgba": [0, 220, 255, 255] },
+      "pixelSize": 12,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "Sat_0 (LEO)",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [0, 220, 255, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "path": {
+      "material": { "solidColor": { "color": { "rgba": [0, 220, 255, 180] } } },
+      "width": 2,
+      "leadTime": 1800,
+      "trailTime": 1800
+    },
+    "properties": {
+      "SNR (dB)": { "number": 28.5 },
+      "SINR (dB)": { "number": 24.2 },
+      "Distance (km)": { "number": 680.5 },
+      "meanPRx": { "number": -85.4 },
+      "Theta_el_sat_see_vsat": { "number": 65.2 }
+    }
+  },
+  {
+    "id": "Sat_1",
+    "name": "LEO Satellite 2 (Sat_1)",
+    "availability": "2026-09-15T00:00:00Z/2026-09-15T01:00:00Z",
+    "position": {
+      "referenceFrame": "FIXED",
+      "cartographicDegrees": [
+        "2026-09-15T00:00:00Z", 10.0, 52.5, 550000.0,
+        "2026-09-15T00:30:00Z", 45.0, 30.0, 550000.0,
+        "2026-09-15T01:00:00Z", 80.0, 10.0, 550000.0
+      ]
+    },
+    "point": {
+      "color": { "rgba": [50, 205, 50, 255] },
+      "pixelSize": 12,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "Sat_1 (LEO)",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [50, 205, 50, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "path": {
+      "material": { "solidColor": { "color": { "rgba": [50, 205, 50, 180] } } },
+      "width": 2,
+      "leadTime": 1800,
+      "trailTime": 1800
+    },
+    "properties": {
+      "SNR (dB)": { "number": 31.0 },
+      "SINR (dB)": { "number": 27.8 },
+      "Distance (km)": { "number": 590.2 },
+      "meanPRx": { "number": -81.2 },
+      "Theta_el_sat_see_vsat": { "number": 78.0 }
+    }
+  },
+  {
+    "id": "Sat_GEO",
+    "name": "GEO Satellite (Sat_GEO)",
+    "availability": "2026-09-15T00:00:00Z/2026-09-15T01:00:00Z",
+    "position": {
+      "cartographicDegrees": [0.0, 0.0, 35786000.0]
+    },
+    "point": {
+      "color": { "rgba": [255, 215, 0, 255] },
+      "pixelSize": 14,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "Sat_GEO",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [255, 215, 0, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "properties": {
+      "SNR (dB)": { "number": 19.4 },
+      "SINR (dB)": { "number": 16.1 },
+      "Distance (km)": { "number": 36120.0 },
+      "meanPRx": { "number": -102.5 },
+      "Theta_el_sat_see_vsat": { "number": 42.0 }
+    }
+  },
+  {
+    "id": "ground_station_0",
+    "name": "Ground Station Alpha (GS 0)",
+    "position": {
+      "cartographicDegrees": [-74.006, 40.7128, 10.0]
+    },
+    "point": {
+      "color": { "rgba": [255, 69, 0, 255] },
+      "pixelSize": 14,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "GS Alpha (NYC)",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [255, 69, 0, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "properties": {
+      "Elevation Angle": { "number": 65.2 },
+      "Azimuth Angle": { "number": 142.8 },
+      "Status": "ACTIVE"
+    }
+  },
+  {
+    "id": "haps_0",
+    "name": "HAPS Platform 1 (haps_0)",
+    "position": {
+      "cartographicDegrees": [-73.8, 40.8, 20000.0]
+    },
+    "point": {
+      "color": { "rgba": [186, 85, 211, 255] },
+      "pixelSize": 12,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "HAPS 1 (20km)",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [186, 85, 211, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "properties": {
+      "SNR (dB)": { "number": 38.2 },
+      "SINR (dB)": { "number": 35.1 },
+      "Distance (km)": { "number": 28.4 },
+      "meanPRx": { "number": -62.0 }
+    }
+  },
+  {
+    "id": "bs_0",
+    "name": "5G Base Station 1 (bs_0)",
+    "position": {
+      "cartographicDegrees": [-73.98, 40.75, 45.0]
+    },
+    "point": {
+      "color": { "rgba": [255, 140, 0, 255] },
+      "pixelSize": 10,
+      "outlineColor": { "rgba": [255, 255, 255, 255] },
+      "outlineWidth": 2
+    },
+    "label": {
+      "text": "5G BS 1",
+      "font": "12px sans-serif",
+      "fillColor": { "rgba": [255, 140, 0, 255] },
+      "pixelOffset": { "cartesian2": [0, -18] }
+    },
+    "properties": {
+      "TxPower (dBm)": { "number": 43.0 },
+      "Frequency (GHz)": { "number": 28.0 }
+    }
+  },
+  {
+    "id": "coverage_sat_0",
+    "name": "Sat_0 Footprint Coverage",
+    "position": {
+      "cartographicDegrees": [-74.0, 40.7, 0.0]
+    },
+    "ellipse": {
+      "semiMajorAxis": 150000.0,
+      "semiMinorAxis": 150000.0,
+      "material": {
+        "solidColor": { "color": { "rgba": [0, 220, 255, 60] } }
+      },
+      "outline": true,
+      "outlineColor": { "rgba": [0, 220, 255, 200] }
+    },
+    "properties": {
+      "Radius (km)": { "number": 150.0 },
+      "Coverage Area (sqkm)": { "number": 70685.8 }
+    }
+  },
+  {
+    "id": "coverage_sat_1",
+    "name": "Sat_1 Footprint Coverage",
+    "position": {
+      "cartographicDegrees": [10.0, 52.5, 0.0]
+    },
+    "ellipse": {
+      "semiMajorAxis": 120000.0,
+      "semiMinorAxis": 120000.0,
+      "material": {
+        "solidColor": { "color": { "rgba": [50, 205, 50, 60] } }
+      },
+      "outline": true,
+      "outlineColor": { "rgba": [50, 205, 50, 200] }
+    },
+    "properties": {
+      "Radius (km)": { "number": 120.0 },
+      "Coverage Area (sqkm)": { "number": 45238.9 }
+    }
+  }
+]

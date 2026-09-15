@@ -2,13 +2,14 @@
   "name": "aether3d-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Aether3D-Frontend — React + CesiumJS 3D visualization for the Aether-3D (formerly 3DANTS) satellite simulator",
+  "type": "module",
+  "description": "Aether3D-Frontend — React + CesiumJS 3D visualization for the Aether-3D satellite simulator",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "host": "vite --host",
-    "lint": "eslint . --ext js,jsx --fix",
+    "lint": "eslint src/ --fix",
     "format": "prettier --write ."
   },
   "keywords": [
@@ -20,22 +21,22 @@
     "6g",
     "orbit",
     "visualization",
-    "aether3d",
-    "3dants"
+    "aether3d"
   ],
   "dependencies": {
-    "cesium": "^1.125.0",
+    "cesium": "^1.145.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@eslint/js": "^8.57.1",
-    "@vitejs/plugin-react": "^4.4.1",
-    "eslint": "^8.57.1",
-    "eslint-plugin-react": "^7.37.0",
-    "globals": "^15.11.0",
+    "@eslint/js": "^9.39.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.12.0",
     "prettier": "^3.3.3",
-    "vite": "^5.4.0"
+    "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^2.3.1"
   },
   "engines": {
     "node": ">=20",

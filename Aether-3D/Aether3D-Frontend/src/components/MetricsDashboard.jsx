@@ -1,204 +1,180 @@
 import React, { useMemo } from 'react';
-import {
-  classifyEntity,
-  EntityType,
-  getEntitiesByType,
-  extractEntityMetrics,
-  entitySummary,
-} from '@utils/czmlUtils.js';
+import { EntityType, getEntitiesByType, extractEntityMetrics } from '@utils/czmlUtils.js';
 import './MetricsDashboard.css';
 
-/**
- * MetricsDashboard — display channel-quality metrics for the
- * selected entity and an overview of all loaded simulation data.
- *
- * @param {Object} props
- * @param {Object|null} props.selectedEntity - Currently picked entity.
- * @param {Array|null} props.czmlData - Loaded CZML array.
- * @param {string} props.czmlFileName - Name of the loaded file.
- */
-export default function MetricsDashboard({ selectedEntity, czmlData, czmlFileName }) {
-  const overview = useMemo(() => {
-    if (!czmlData || !Array.isArray(czmlData)) return null;
+function MetricHistogram({ values, metricName }) {
+  const BINS = 10;
+  const stats = useMemo(() => {
+    if (!values || values.length === 0) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
 
-    const satellites = getEntitiesByType(czmlData, EntityType.SATELLITE);
-    const coverage = getEntitiesByType(czmlData, EntityType.COVERAGE);
-    const groundStations = getEntitiesByType(czmlData, EntityType.GROUND_STATION);
-    const haps = getEntitiesByType(czmlData, EntityType.HAPS);
-    const baseStations = getEntitiesByType(czmlData, EntityType.BASE_STATION);
-
-    // Gather all metrics for statistics.
-    const allMetrics = [];
-    for (const packet of czmlData) {
-      if (!packet || !packet.id) continue;
-      const metrics = extractEntityMetrics(packet);
-      if (Object.keys(metrics).length > 0) {
-        allMetrics.push({ id: packet.id, name: packet.name, metrics });
-      }
+    if (min === max) {
+      return { min, max, mean, binCounts: [values.length], binRanges: [`${min.toFixed(1)}`] };
     }
 
+    const range = max - min;
+    const binWidth = range / BINS;
+    const binCounts = new Array(BINS).fill(0);
+
+    values.forEach((v) => {
+      let idx = Math.floor((v - min) / binWidth);
+      if (idx >= BINS) idx = BINS - 1;
+      binCounts[idx]++;
+    });
+
+    return { min, max, mean, binCounts };
+  }, [values]);
+
+  if (!stats) {
+    return <div className="no-histogram">No numerical data for histogram</div>;
+  }
+
+  const maxCount = Math.max(...stats.binCounts, 1);
+  const svgWidth = 280;
+  const svgHeight = 75;
+  const barWidth = svgWidth / BINS - 2;
+
+  return (
+    <div className="histogram-container">
+      <div className="histogram-header">
+        <span className="histogram-title">{metricName} Distribution</span>
+        <span className="histogram-stats">
+          Mean: {stats.mean.toFixed(1)} | Min: {stats.min.toFixed(1)} | Max: {stats.max.toFixed(1)}
+        </span>
+      </div>
+
+      <svg width={svgWidth} height={svgHeight} className="histogram-svg">
+        {stats.binCounts.map((count, i) => {
+          const barHeight = (count / maxCount) * (svgHeight - 15);
+          const x = i * (barWidth + 2);
+          const y = svgHeight - barHeight - 12;
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                className="histogram-bar"
+              />
+              <text x={x + barWidth / 2} y={y - 2} textAnchor="middle" className="bar-label">
+                {count > 0 ? count : ''}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+export default function MetricsDashboard({
+  selectedEntity,
+  czmlData,
+  collapsed,
+  onToggleCollapse,
+}) {
+  const summary = useMemo(() => {
+    if (!czmlData) return null;
     return {
-      satellites,
-      coverage,
-      groundStations,
-      haps,
-      baseStations,
-      allMetrics,
+      satellites: getEntitiesByType(czmlData, EntityType.SATELLITE).length,
+      groundStations: getEntitiesByType(czmlData, EntityType.GROUND_STATION).length,
+      haps: getEntitiesByType(czmlData, EntityType.HAPS).length,
+      baseStations: getEntitiesByType(czmlData, EntityType.BASE_STATION).length,
+      coverage: getEntitiesByType(czmlData, EntityType.COVERAGE).length,
+      total: czmlData.filter((p) => p && p.id).length,
     };
   }, [czmlData]);
 
-  const selectedMetrics = useMemo(() => {
-    if (!selectedEntity) return null;
-    return selectedEntity.metrics;
-  }, [selectedEntity]);
-
-  const renderMetricRow = (label, value, unit = '') => {
-    if (value === undefined || value === null || Number.isNaN(value)) {
-      return null;
-    }
-    const num = typeof value === 'number';
-    return (
-      <div className="metric-row">
-        <span className="metric-label">{label}</span>
-        <span className="metric-value">
-          {num ? value.toFixed(2) : value}
-          {unit && ` ${unit}`}
-        </span>
-      </div>
-    );
-  };
-
-  const renderSINRTrend = () => {
-    if (!overview || !overview.allMetrics) return null;
-    const sinrValues = overview.allMetrics
-      .map((m) => m.metrics['SINR (dB)'])
+  const sinrValues = useMemo(() => {
+    if (!czmlData) return [];
+    return czmlData
+      .map((p) => extractEntityMetrics(p)['SINR (dB)'])
       .filter((v) => typeof v === 'number');
-    if (sinrValues.length === 0) return null;
-
-    const min = Math.min(...sinrValues);
-    const max = Math.max(...sinrValues);
-    const mean = sinrValues.reduce((a, b) => a + b, 0) / sinrValues.length;
-
-    return (
-      <div className="metric-chart">
-        <div className="chart-bar">
-          <div
-            className="bar-fill mean"
-            style={{ height: `${((mean - min) / (max - min || 1)) * 100}%` }}
-            title={`Mean: ${mean.toFixed(1)} dB`}
-          />
-          <div
-            className="bar-fill min"
-            style={{ height: `${((min - min) / (max - min || 1)) * 100}%` }}
-            title={`Min: ${min.toFixed(1)} dB`}
-          />
-          <div
-            className="bar-fill max"
-            style={{ height: `${((max - min) / (max - min || 1)) * 100}%` }}
-            title={`Max: ${max.toFixed(1)} dB`}
-          />
-        </div>
-        <div className="chart-stats">
-          <span>SINR: min {min.toFixed(1)} / mean {mean.toFixed(1)} / max {max.toFixed(1)} dB</span>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPRxTrend = () => {
-    if (!overview || !overview.allMetrics) return null;
-    const pwrValues = overview.allMetrics
-      .map((m) => m.metrics['meanPRx'])
-      .filter((v) => typeof v === 'number');
-    if (pwrValues.length === 0) return null;
-
-    const min = Math.min(...pwrValues);
-    const max = Math.max(...pwrValues);
-    const mean = pwrValues.reduce((a, b) => a + b, 0) / pwrValues.length;
-
-    return (
-      <div className="metric-chart">
-        <div className="chart-bar">
-          <div
-            className="bar-fill mean"
-            style={{
-              height: `${(((mean - min) / (max - min || 1)) * 100) || 10}%`,
-            }}
-            title={`Mean: ${mean.toFixed(1)} dBW`}
-          />
-        </div>
-        <div className="chart-stats">
-          <span>P_Rx: min {min.toFixed(1)} / mean {mean.toFixed(1)} / max {max.toFixed(1)} dBW</span>
-        </div>
-      </div>
-    );
-  };
+  }, [czmlData]);
 
   return (
-    <div className="metrics-dashboard">
-      <div className="dashboard-header">
-        <h3 className="section-title">
-          {czmlFileName ? `Metrics: ${czmlFileName}` : 'Metrics Dashboard'}
-        </h3>
-        <div className="entity-type-summary">
-          {overview && (
-            <>
-              <span className="type-badge">SAT: {overview.satellites.length}</span>
-              <span className="type-badge">CVG: {overview.coverage.length}</span>
-              <span className="type-badge">GS: {overview.groundStations.length}</span>
-              <span className="type-badge">HAPS: {overview.haps.length}</span>
-              <span className="type-badge">BS: {overview.baseStations.length}</span>
-            </>
-          )}
+    <div className={`metrics-dashboard ${collapsed ? 'collapsed' : ''}`}>
+      <div className="dashboard-header" onClick={onToggleCollapse}>
+        <div className="header-left">
+          <span className={`chevron ${collapsed ? 'collapsed' : ''}`}>▼</span>
+          <span className="dashboard-title">
+            {selectedEntity ? `Inspection: ${selectedEntity.name || selectedEntity.id}` : 'System Metrics & Analytics'}
+          </span>
         </div>
-      </div>
-
-      <div className="dashboard-content">
-        {/* Selected entity card */}
-        <div className="entity-card">
-          <h4 className="card-title">
-            {selectedEntity ? selectedEntity.name || selectedEntity.id : 'No entity selected'}
-          </h4>
-          {selectedEntity && selectedEntity.type && (
-            <span className={`entity-type-badge type-${selectedEntity.type}`}>
-              {selectedEntity.type}
+        <div className="header-right">
+          {summary && (
+            <span className="summary-pill">
+              {summary.total} Entities ({summary.satellites} Sats, {summary.groundStations} GS, {summary.haps} HAPS)
             </span>
           )}
-          {selectedMetrics ? (
-            <div className="metrics-list">
-              {renderMetricRow('Mean P_Rx', selectedMetrics['meanPRx'], 'dBW')}
-              {renderMetricRow('SNR', selectedMetrics['SNR (dB)'], 'dB')}
-              {renderMetricRow('SINR', selectedMetrics['SINR (dB)'], 'dB')}
-              {renderMetricRow('Distance', selectedMetrics['Distance (km)'], 'km')}
-              {renderMetricRow('Latitude', selectedMetrics['lat'])}
-              {renderMetricRow('Longitude', selectedMetrics['lon'])}
-              {renderMetricRow('Elevation', selectedMetrics['Theta_el_sat_see_vsat'], 'deg')}
-              {renderMetricRow('Azimuth', selectedMetrics['Theta_az_sat_see_vsat'], 'deg')}
-              {renderMetricRow('theta_el_vsat', selectedMetrics['theta_el_vsat_see_sat'], 'deg')}
-              {renderMetricRow('theta_az_vsat', selectedMetrics['theta_az_vsat_see_sat'], 'deg')}
-            </div>
-          ) : (
-            <div className="no-selection">
-              Click on a satellite, ground station, or coverage cell
-              in the 3D view to inspect its metrics.
-            </div>
-          )}
         </div>
-
-        {/* Overview charts */}
-        {overview && overview.allMetrics.length > 0 && (
-          <div className="charts-row">
-            <div className="chart-card">
-              <h4>SINR Distribution</h4>
-              {renderSINRTrend()}
-            </div>
-            <div className="chart-card">
-              <h4>Received Power</h4>
-              {renderPRxTrend()}
-            </div>
-          </div>
-        )}
       </div>
+
+      {!collapsed && (
+        <div className="dashboard-content">
+          <div className="metrics-pane">
+            <h4 className="pane-title">Selected Entity Metrics</h4>
+            {selectedEntity ? (
+              <div className="entity-details">
+                <div className="detail-row">
+                  <span className="detail-key">ID / Name:</span>
+                  <span className="detail-val">{selectedEntity.name || selectedEntity.id}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-key">Category:</span>
+                  <span className="detail-val category-tag">{selectedEntity.type}</span>
+                </div>
+                {Object.entries(selectedEntity.metrics || {}).map(([k, v]) => (
+                  <div key={k} className="detail-row">
+                    <span className="detail-key">{k}:</span>
+                    <span className="detail-val highlight">
+                      {typeof v === 'number' ? v.toFixed(2) : String(v)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-selection">
+                Click any satellite, HAPS, or ground station on the 3D globe to inspect live channel metrics.
+              </div>
+            )}
+          </div>
+
+          <div className="metrics-pane">
+            <h4 className="pane-title">RF Channel Distribution</h4>
+            <MetricHistogram values={sinrValues} metricName="SINR (dB)" />
+          </div>
+
+          <div className="metrics-pane">
+            <h4 className="pane-title">Topology Breakdown</h4>
+            {summary ? (
+              <div className="breakdown-grid">
+                <div className="breakdown-card">
+                  <span className="card-num">{summary.satellites}</span>
+                  <span className="card-label">Satellites</span>
+                </div>
+                <div className="breakdown-card">
+                  <span className="card-num">{summary.groundStations}</span>
+                  <span className="card-label">Ground Stations</span>
+                </div>
+                <div className="breakdown-card">
+                  <span className="card-num">{summary.haps}</span>
+                  <span className="card-label">HAPS</span>
+                </div>
+                <div className="breakdown-card">
+                  <span className="card-num">{summary.coverage}</span>
+                  <span className="card-label">Coverage Cells</span>
+                </div>
+              </div>
+            ) : (
+              <div className="no-selection">No dataset loaded</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

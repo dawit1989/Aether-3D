@@ -1,18 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const cesiumBuildPath = 'node_modules/cesium/Build/Cesium';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const isServe = mode === 'development';
-  const isPreview = mode === 'preview';
-  const defineDev = isServe || isPreview;
-
+export default defineConfig(() => {
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      viteStaticCopy({
+        targets: [
+          { src: `${cesiumBuildPath}/Workers/**/*`, dest: 'Workers' },
+          { src: `${cesiumBuildPath}/Assets/**/*`, dest: 'Assets' },
+          { src: `${cesiumBuildPath}/Widgets/**/*`, dest: 'Widgets' },
+          { src: `${cesiumBuildPath}/ThirdParty/**/*`, dest: 'ThirdParty' },
+        ],
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
@@ -22,12 +30,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // Allow connections from any host in containerised environments.
       host: true,
       port: 5173,
       fs: {
-        // Allow serving files from the parent Aether-3D directory so
-        // users can load generated .czml files directly.
         allow: [
           __dirname,
           path.resolve(__dirname, '..'),
@@ -37,23 +42,18 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: true,
+      chunkSizeWarningLimit: 5000,
       rollupOptions: {
         output: {
-          manualChunks: {
-            cesium: ['cesium'],
-            react: ['react', 'react-dom'],
+          manualChunks(id) {
+            if (id.includes('node_modules/cesium')) return 'cesium';
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'react';
           },
         },
       },
     },
-    // Cesium requires these defines to resolve assets correctly.
     define: {
-      CESIUM_BASE_URL: defineDev
-        ? JSON.stringify('/')
-        : JSON.stringify('/'),
-    },
-    optimizeDeps: {
-      exclude: ['cesium'],
+      CESIUM_BASE_URL: JSON.stringify('/'),
     },
   };
 });

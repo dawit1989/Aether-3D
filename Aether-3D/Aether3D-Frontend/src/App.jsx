@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from 'react';
-import CesiumGlobe from '@components/CesiumGlobe.jsx';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
 import FileUploader from '@components/FileUploader.jsx';
 import ControlPanel from '@components/ControlPanel.jsx';
 import MetricsDashboard from '@components/MetricsDashboard.jsx';
@@ -7,68 +6,43 @@ import StatusBar from '@components/StatusBar.jsx';
 import { ApiProvider } from '@hooks/useApi.jsx';
 import './App.css';
 
-/**
- * Root application component for Aether3D-Frontend.
- *
- * Layout:
- *   ┌─────────────────────────────────────────────┐
- *   │  StatusBar                                 │
- *   ├─────┬──────────────┬──────────────────────┤
- *   │     │  ControlPanel │                      │
- *   │     │  CesiumGlobe │                      │
- *   │  M  │              │                      │
- *   │  e  │              │                      │
- *   │  t  └──────────────┘                      │
- *   │  r                                         │
- *   │  i                                         │
- *   │  c                                         │
- *   │  s                                         │
- *   │  D                                         │
- *   │  a                                         │
- *   │  s                                         │
- *   │  h                                         │
- *   │  b                                         │
- *   │  o                                         │
- *   │  a                                         │
- *   │  r                                         │
- *   └─────┴──────────────────────────────────────┘
- */
+const CesiumGlobe = lazy(() => import('@components/CesiumGlobe.jsx'));
+
 export default function App() {
-  // Active CZML entities loaded into the globe.
   const [czmlData, setCzmlData] = useState(null);
   const [czmlFileName, setCzmlFileName] = useState('');
 
-  // Visualisation toggles.
   const [showSatellites, setShowSatellites] = useState(true);
   const [showCoverage, setShowCoverage] = useState(true);
   const [showGroundStations, setShowGroundStations] = useState(true);
   const [showOrbits, setShowOrbits] = useState(false);
 
-  // Time-animator state (driven by CZML clock when available).
+  const [terrainMode, setTerrainMode] = useState('ellipsoid');
+  const [baseMap, setBaseMap] = useState('osm');
+
   const [currentTime, setCurrentTime] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Selected entity for metrics inspection.
   const [selectedEntity, setSelectedEntity] = useState(null);
+  const [dashboardCollapsed, setDashboardCollapsed] = useState(false);
 
-  // API integration.
-  const [apiEndpoint, setApiEndpoint] = useState(
-    import.meta.env.VITE_API_BASE || 'http://localhost:8000'
-  );
+  const [apiEndpoint, setApiEndpoint] = useState('http://localhost:8000');
 
   const handleCzmlLoad = useCallback((data, name) => {
     setCzmlData(data);
     setCzmlFileName(name);
     setSelectedEntity(null);
+    setDashboardCollapsed(false);
   }, []);
 
   const handleEntitySelect = useCallback((entity) => {
     setSelectedEntity(entity);
+    setDashboardCollapsed(false);
   }, []);
 
   return (
     <ApiProvider endpoint={apiEndpoint}>
-      <div className="app">
+      <div className={`app ${dashboardCollapsed ? 'dashboard-collapsed' : ''}`}>
         <StatusBar
           fileName={czmlFileName}
           apiEndpoint={apiEndpoint}
@@ -76,7 +50,6 @@ export default function App() {
         />
 
         <div className="main-area">
-          {/* Left sidebar: file upload + controls */}
           <div className="sidebar">
             <FileUploader onCzmlLoad={handleCzmlLoad} />
             <ControlPanel
@@ -88,31 +61,45 @@ export default function App() {
               onShowGroundStationsChange={setShowGroundStations}
               showOrbits={showOrbits}
               onShowOrbitsChange={setShowOrbits}
+              terrainMode={terrainMode}
+              onTerrainModeChange={setTerrainMode}
+              baseMap={baseMap}
+              onBaseMapChange={setBaseMap}
             />
           </div>
 
-          {/* Centre: Cesium 3D globe */}
           <div className="globe-container">
-            <CesiumGlobe
-              czmlData={czmlData}
-              showSatellites={showSatellites}
-              showCoverage={showCoverage}
-              showGroundStations={showGroundStations}
-              showOrbits={showOrbits}
-              onEntitySelect={handleEntitySelect}
-              currentTime={currentTime}
-              onCurrentTimeChange={setCurrentTime}
-              isPlaying={isPlaying}
-              onIsPlayingChange={setIsPlaying}
-            />
+            <Suspense
+              fallback={
+                <div className="globe-loading">
+                  <div className="loading-spinner" />
+                  <span>Loading 3D Globe Engine…</span>
+                </div>
+              }
+            >
+              <CesiumGlobe
+                czmlData={czmlData}
+                showSatellites={showSatellites}
+                showCoverage={showCoverage}
+                showGroundStations={showGroundStations}
+                showOrbits={showOrbits}
+                onEntitySelect={handleEntitySelect}
+                currentTime={currentTime}
+                onCurrentTimeChange={setCurrentTime}
+                isPlaying={isPlaying}
+                onIsPlayingChange={setIsPlaying}
+                terrainMode={terrainMode}
+                baseMap={baseMap}
+              />
+            </Suspense>
           </div>
         </div>
 
-        {/* Bottom panel: metrics dashboard */}
         <MetricsDashboard
           selectedEntity={selectedEntity}
           czmlData={czmlData}
-          czmlFileName={czmlFileName}
+          collapsed={dashboardCollapsed}
+          onToggleCollapse={() => setDashboardCollapsed((prev) => !prev)}
         />
       </div>
     </ApiProvider>

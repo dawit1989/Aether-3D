@@ -1,198 +1,193 @@
-/* MetricsDashboard component styles */
-
 .metrics-dashboard {
+  height: 240px;
+  background: rgba(15, 15, 24, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  height: 260px;
-  max-height: 260px;
+  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  z-index: 90;
+}
+
+.metrics-dashboard.collapsed {
+  height: 36px;
 }
 
 .dashboard-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  user-select: none;
 }
 
-.dashboard-header .section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #c0c0d0;
-  margin: 0 0 8px 0;
+.dashboard-header:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chevron {
+  font-size: 10px;
+  color: #00dcff;
+  transition: transform 0.2s ease;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.dashboard-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e0e0f0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.entity-type-summary {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.type-badge {
-  padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+.summary-pill {
   font-size: 11px;
-  color: #a0a0b0;
+  color: #808095;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 10px;
+  border-radius: 12px;
 }
 
 .dashboard-content {
   display: flex;
   flex: 1;
-  overflow: hidden;
   padding: 12px 16px;
-  gap: 16px;
+  gap: 20px;
+  overflow: hidden;
 }
 
-.entity-card {
+.metrics-pane {
   flex: 1;
-  min-width: 200px;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
 }
 
-.card-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e8e8f0;
-  margin: 0 0 8px 0;
-}
-
-.entity-type-badge {
-  align-self: flex-start;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 600;
+.pane-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #808095;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin-bottom: 8px;
 }
 
-.entity-type-badge.type-satellite {
-  background: rgba(100, 200, 255, 0.15);
-  color: #64c8ff;
+.no-selection {
+  font-size: 12px;
+  color: #606075;
+  margin: auto 0;
+  text-align: center;
 }
 
-.entity-type-badge.type-ground_station {
-  background: rgba(60, 200, 100, 0.15);
-  color: #60ffc8;
-}
-
-.entity-type-badge.type-coverage {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
-}
-
-.entity-type-badge.type-haps {
-  background: rgba(200, 100, 255, 0.15);
-  color: #c864ff;
-}
-
-.entity-type-badge.type-base_station {
-  background: rgba(255, 200, 100, 0.15);
-  color: #ffc864;
-}
-
-.entity-type-badge.type-unknown {
-  background: rgba(160, 160, 176, 0.15);
-  color: #a0a0b0;
-}
-
-.metrics-list {
+.entity-details {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.metric-row {
+.detail-row {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
 }
 
-.metric-label {
-  color: #808090;
+.detail-key {
+  color: #808095;
 }
 
-.metric-value {
-  color: #c0c0d0;
-  font-weight: 500;
-}
-
-.no-selection {
-  font-size: 12px;
-  color: #808090;
-  text-align: center;
-  padding: 16px;
-  font-style: italic;
-}
-
-.charts-row {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 200px;
-}
-
-.chart-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-card h4 {
-  font-size: 12px;
+.detail-val {
+  color: #d0d0e0;
   font-weight: 600;
-  color: #a0a0b0;
-  margin: 0 0 8px 0;
 }
 
-.metric-chart {
+.detail-val.highlight {
+  color: #00dcff;
+}
+
+.category-tag {
+  background: rgba(0, 220, 255, 0.15);
+  color: #00dcff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.histogram-container {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 6px;
 }
 
-.chart-bar {
+.histogram-header {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 40px;
-  flex: 1;
-  min-height: 40px;
+  justify-content: space-between;
+  font-size: 11px;
 }
 
-.bar-fill {
-  flex: 1;
-  min-width: 4px;
-  border-radius: 2px 2px 0 0;
-  transition: height 0.3s ease;
+.histogram-title {
+  color: #c0c0d0;
+  font-weight: 600;
 }
 
-.bar-fill.mean {
-  background: rgba(100, 200, 255, 0.7);
+.histogram-stats {
+  color: #808095;
 }
 
-.bar-fill.min {
-  background: rgba(60, 200, 100, 0.5);
+.histogram-svg {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 4px;
 }
 
-.bar-fill.max {
-  background: rgba(255, 100, 100, 0.5);
+.histogram-bar {
+  fill: #00dcff;
+  opacity: 0.8;
+  rx: 2;
 }
 
-.chart-stats {
+.bar-label {
+  fill: #a0a0b0;
+  font-size: 9px;
+}
+
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.breakdown-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00dcff;
+}
+
+.card-label {
   font-size: 10px;
-  color: #808090;
-  margin-top: 4px;
+  color: #808095;
 }
